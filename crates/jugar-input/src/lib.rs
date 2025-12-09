@@ -1,0 +1,537 @@
+//! # jugar-input
+//!
+//! Unified input handling for touch, mouse, and gamepad.
+
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
+
+use glam::Vec2;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+/// Input errors
+#[derive(Error, Debug, Clone, PartialEq)]
+pub enum InputError {
+    /// Invalid gamepad index
+    #[error("Gamepad {0} not connected")]
+    GamepadNotConnected(u32),
+}
+
+/// Result type for input operations
+pub type Result<T> = core::result::Result<T, InputError>;
+
+/// Input device type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InputDevice {
+    /// Touch screen
+    Touch,
+    /// Mouse
+    Mouse,
+    /// Keyboard
+    Keyboard,
+    /// Gamepad/Controller
+    Gamepad(u32),
+}
+
+/// Touch/Mouse button state
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum ButtonState {
+    /// Not pressed
+    #[default]
+    Released,
+    /// Just pressed this frame
+    JustPressed,
+    /// Held down
+    Pressed,
+    /// Just released this frame
+    JustReleased,
+}
+
+impl ButtonState {
+    /// Returns true if the button is currently down
+    #[must_use]
+    pub const fn is_down(self) -> bool {
+        matches!(self, Self::JustPressed | Self::Pressed)
+    }
+
+    /// Returns true if the button was just pressed
+    #[must_use]
+    pub const fn just_pressed(self) -> bool {
+        matches!(self, Self::JustPressed)
+    }
+
+    /// Returns true if the button was just released
+    #[must_use]
+    pub const fn just_released(self) -> bool {
+        matches!(self, Self::JustReleased)
+    }
+
+    /// Advances the state after a frame
+    #[must_use]
+    pub const fn advance(self) -> Self {
+        match self {
+            Self::JustPressed => Self::Pressed,
+            Self::JustReleased => Self::Released,
+            other => other,
+        }
+    }
+}
+
+/// Mouse button identifier
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MouseButton {
+    /// Left mouse button
+    Left,
+    /// Right mouse button
+    Right,
+    /// Middle mouse button
+    Middle,
+    /// Extra button (index)
+    Extra(u8),
+}
+
+/// Touch event
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TouchEvent {
+    /// Touch identifier
+    pub id: u32,
+    /// Position in screen coordinates
+    pub position: Vec2,
+    /// Change in position since last event
+    pub delta: Vec2,
+    /// Touch phase
+    pub phase: TouchPhase,
+    /// Pressure (0.0 to 1.0, if available)
+    pub pressure: f32,
+}
+
+impl TouchEvent {
+    /// Creates a new touch event
+    #[must_use]
+    pub fn new(position: Vec2) -> Self {
+        Self {
+            id: 0,
+            position,
+            delta: Vec2::ZERO,
+            phase: TouchPhase::Started,
+            pressure: 1.0,
+        }
+    }
+
+    /// Sets the touch ID
+    #[must_use]
+    pub const fn with_id(mut self, id: u32) -> Self {
+        self.id = id;
+        self
+    }
+
+    /// Sets the phase
+    #[must_use]
+    pub const fn with_phase(mut self, phase: TouchPhase) -> Self {
+        self.phase = phase;
+        self
+    }
+}
+
+/// Touch phase
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TouchPhase {
+    /// Touch just started
+    Started,
+    /// Touch moved
+    Moved,
+    /// Touch ended normally
+    Ended,
+    /// Touch was cancelled
+    Cancelled,
+}
+
+/// Keyboard key code
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum KeyCode {
+    /// Arrow keys
+    Up,
+    /// Arrow down
+    Down,
+    /// Arrow left
+    Left,
+    /// Arrow right
+    Right,
+    /// Space bar
+    Space,
+    /// Enter/Return
+    Enter,
+    /// Escape
+    Escape,
+    /// Letter keys (A-Z)
+    Letter(char),
+    /// Number keys (0-9)
+    Number(u8),
+    /// Function keys (F1-F12)
+    Function(u8),
+}
+
+/// Gamepad button
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GamepadButton {
+    /// A button (Xbox) / Cross (PlayStation)
+    South,
+    /// B button (Xbox) / Circle (PlayStation)
+    East,
+    /// X button (Xbox) / Square (PlayStation)
+    West,
+    /// Y button (Xbox) / Triangle (PlayStation)
+    North,
+    /// Left bumper/shoulder
+    LeftBumper,
+    /// Right bumper/shoulder
+    RightBumper,
+    /// Left stick press
+    LeftStick,
+    /// Right stick press
+    RightStick,
+    /// Start/Options
+    Start,
+    /// Select/Share
+    Select,
+    /// D-pad up
+    DPadUp,
+    /// D-pad down
+    DPadDown,
+    /// D-pad left
+    DPadLeft,
+    /// D-pad right
+    DPadRight,
+}
+
+/// Gamepad axis
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GamepadAxis {
+    /// Left stick X
+    LeftStickX,
+    /// Left stick Y
+    LeftStickY,
+    /// Right stick X
+    RightStickX,
+    /// Right stick Y
+    RightStickY,
+    /// Left trigger
+    LeftTrigger,
+    /// Right trigger
+    RightTrigger,
+}
+
+/// Gamepad state
+#[derive(Debug, Clone, Default)]
+pub struct GamepadState {
+    /// Connected status
+    pub connected: bool,
+    /// Button states
+    pub buttons: [ButtonState; 14],
+    /// Axis values (-1.0 to 1.0 for sticks, 0.0 to 1.0 for triggers)
+    pub axes: [f32; 6],
+}
+
+impl GamepadState {
+    /// Gets a button state
+    #[must_use]
+    pub fn button(&self, button: GamepadButton) -> ButtonState {
+        let idx = button as usize;
+        if idx < self.buttons.len() {
+            self.buttons[idx]
+        } else {
+            ButtonState::Released
+        }
+    }
+
+    /// Gets an axis value
+    #[must_use]
+    pub fn axis(&self, axis: GamepadAxis) -> f32 {
+        let idx = axis as usize;
+        if idx < self.axes.len() {
+            self.axes[idx]
+        } else {
+            0.0
+        }
+    }
+
+    /// Gets left stick as a Vec2
+    #[must_use]
+    pub fn left_stick(&self) -> Vec2 {
+        Vec2::new(
+            self.axis(GamepadAxis::LeftStickX),
+            self.axis(GamepadAxis::LeftStickY),
+        )
+    }
+
+    /// Gets right stick as a Vec2
+    #[must_use]
+    pub fn right_stick(&self) -> Vec2 {
+        Vec2::new(
+            self.axis(GamepadAxis::RightStickX),
+            self.axis(GamepadAxis::RightStickY),
+        )
+    }
+}
+
+/// Unified input state manager
+#[derive(Debug, Default)]
+pub struct InputState {
+    /// Mouse position
+    pub mouse_position: Vec2,
+    /// Mouse delta
+    pub mouse_delta: Vec2,
+    /// Mouse button states
+    pub mouse_buttons: [ButtonState; 5],
+    /// Active touches
+    pub touches: Vec<TouchEvent>,
+    /// Keyboard key states
+    keys: std::collections::HashMap<KeyCode, ButtonState>,
+    /// Gamepad states (up to 4)
+    pub gamepads: [GamepadState; 4],
+}
+
+impl InputState {
+    /// Creates a new input state
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Gets mouse button state
+    #[must_use]
+    pub fn mouse_button(&self, button: MouseButton) -> ButtonState {
+        let idx = match button {
+            MouseButton::Left => 0,
+            MouseButton::Right => 1,
+            MouseButton::Middle => 2,
+            MouseButton::Extra(n) => 3 + n as usize,
+        };
+        if idx < self.mouse_buttons.len() {
+            self.mouse_buttons[idx]
+        } else {
+            ButtonState::Released
+        }
+    }
+
+    /// Gets key state
+    #[must_use]
+    pub fn key(&self, key: KeyCode) -> ButtonState {
+        self.keys.get(&key).copied().unwrap_or(ButtonState::Released)
+    }
+
+    /// Sets key state
+    pub fn set_key(&mut self, key: KeyCode, state: ButtonState) {
+        let _ = self.keys.insert(key, state);
+    }
+
+    /// Gets primary touch (or mouse as touch)
+    #[must_use]
+    pub fn primary_pointer(&self) -> Option<Vec2> {
+        if let Some(touch) = self.touches.first() {
+            Some(touch.position)
+        } else if self.mouse_button(MouseButton::Left).is_down() {
+            Some(self.mouse_position)
+        } else {
+            None
+        }
+    }
+
+    /// Checks if there's any input this frame
+    #[must_use]
+    pub fn has_input(&self) -> bool {
+        !self.touches.is_empty()
+            || self.mouse_buttons.iter().any(|b| b.is_down())
+            || self.keys.values().any(|b| b.is_down())
+            || self.gamepads.iter().any(|g| g.connected)
+    }
+
+    /// Advances button states after a frame
+    pub fn advance_frame(&mut self) {
+        for button in &mut self.mouse_buttons {
+            *button = button.advance();
+        }
+        for state in self.keys.values_mut() {
+            *state = state.advance();
+        }
+        for gamepad in &mut self.gamepads {
+            for button in &mut gamepad.buttons {
+                *button = button.advance();
+            }
+        }
+        self.mouse_delta = Vec2::ZERO;
+    }
+
+    /// Clears all touches
+    pub fn clear_touches(&mut self) {
+        self.touches.clear();
+    }
+}
+
+/// Action binding for input abstraction
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputAction {
+    /// Action name
+    pub name: String,
+    /// Bound keys
+    pub keys: Vec<KeyCode>,
+    /// Bound mouse buttons
+    pub mouse_buttons: Vec<MouseButton>,
+    /// Bound gamepad buttons
+    pub gamepad_buttons: Vec<GamepadButton>,
+}
+
+impl InputAction {
+    /// Creates a new action
+    #[must_use]
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            keys: Vec::new(),
+            mouse_buttons: Vec::new(),
+            gamepad_buttons: Vec::new(),
+        }
+    }
+
+    /// Adds a key binding
+    #[must_use]
+    pub fn with_key(mut self, key: KeyCode) -> Self {
+        self.keys.push(key);
+        self
+    }
+
+    /// Adds a mouse button binding
+    #[must_use]
+    pub fn with_mouse_button(mut self, button: MouseButton) -> Self {
+        self.mouse_buttons.push(button);
+        self
+    }
+
+    /// Adds a gamepad button binding
+    #[must_use]
+    pub fn with_gamepad_button(mut self, button: GamepadButton) -> Self {
+        self.gamepad_buttons.push(button);
+        self
+    }
+
+    /// Checks if the action is active
+    #[must_use]
+    pub fn is_active(&self, input: &InputState) -> bool {
+        self.keys.iter().any(|k| input.key(*k).is_down())
+            || self
+                .mouse_buttons
+                .iter()
+                .any(|b| input.mouse_button(*b).is_down())
+            || self.gamepad_buttons.iter().any(|b| {
+                input
+                    .gamepads
+                    .iter()
+                    .any(|g| g.connected && g.button(*b).is_down())
+            })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_button_state_advance() {
+        assert_eq!(ButtonState::JustPressed.advance(), ButtonState::Pressed);
+        assert_eq!(ButtonState::JustReleased.advance(), ButtonState::Released);
+        assert_eq!(ButtonState::Pressed.advance(), ButtonState::Pressed);
+    }
+
+    #[test]
+    fn test_button_state_queries() {
+        assert!(ButtonState::JustPressed.is_down());
+        assert!(ButtonState::Pressed.is_down());
+        assert!(!ButtonState::Released.is_down());
+        assert!(ButtonState::JustPressed.just_pressed());
+        assert!(ButtonState::JustReleased.just_released());
+    }
+
+    #[test]
+    fn test_touch_event() {
+        let touch = TouchEvent::new(Vec2::new(100.0, 200.0))
+            .with_id(1)
+            .with_phase(TouchPhase::Moved);
+
+        assert_eq!(touch.id, 1);
+        assert_eq!(touch.phase, TouchPhase::Moved);
+    }
+
+    #[test]
+    fn test_input_state_mouse() {
+        let mut state = InputState::new();
+        state.mouse_position = Vec2::new(100.0, 200.0);
+        state.mouse_buttons[0] = ButtonState::JustPressed;
+
+        assert!(state.mouse_button(MouseButton::Left).is_down());
+        assert!(!state.mouse_button(MouseButton::Right).is_down());
+    }
+
+    #[test]
+    fn test_input_state_keyboard() {
+        let mut state = InputState::new();
+        state.set_key(KeyCode::Space, ButtonState::JustPressed);
+
+        assert!(state.key(KeyCode::Space).just_pressed());
+        assert!(!state.key(KeyCode::Enter).is_down());
+    }
+
+    #[test]
+    fn test_input_state_advance() {
+        let mut state = InputState::new();
+        state.mouse_buttons[0] = ButtonState::JustPressed;
+
+        state.advance_frame();
+
+        assert_eq!(state.mouse_buttons[0], ButtonState::Pressed);
+    }
+
+    #[test]
+    fn test_primary_pointer_touch() {
+        let mut state = InputState::new();
+        state.touches.push(TouchEvent::new(Vec2::new(50.0, 50.0)));
+
+        let pointer = state.primary_pointer();
+        assert!(pointer.is_some());
+        assert_eq!(pointer.unwrap(), Vec2::new(50.0, 50.0));
+    }
+
+    #[test]
+    fn test_primary_pointer_mouse() {
+        let mut state = InputState::new();
+        state.mouse_position = Vec2::new(100.0, 100.0);
+        state.mouse_buttons[0] = ButtonState::Pressed;
+
+        let pointer = state.primary_pointer();
+        assert!(pointer.is_some());
+        assert_eq!(pointer.unwrap(), Vec2::new(100.0, 100.0));
+    }
+
+    #[test]
+    fn test_gamepad_state() {
+        let mut gamepad = GamepadState::default();
+        gamepad.axes[0] = 0.5; // Left stick X
+        gamepad.axes[1] = -0.3; // Left stick Y
+
+        let stick = gamepad.left_stick();
+        assert!((stick.x - 0.5).abs() < f32::EPSILON);
+        assert!((stick.y - (-0.3)).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_input_action() {
+        let action = InputAction::new("jump")
+            .with_key(KeyCode::Space)
+            .with_gamepad_button(GamepadButton::South);
+
+        let mut state = InputState::new();
+        assert!(!action.is_active(&state));
+
+        state.set_key(KeyCode::Space, ButtonState::Pressed);
+        assert!(action.is_active(&state));
+    }
+}

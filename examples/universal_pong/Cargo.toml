@@ -1,0 +1,14 @@
+[package]
+name = "universal_pong"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Universal Pong - responsive from mobile to 32:9 ultrawide"
+
+[dependencies]
+jugar = { path = "../../crates/jugar" }
+glam = { version = "0.29", features = ["serde"] }
+
+[[bin]]
+name = "universal_pong"
+path = "src/main.rs"

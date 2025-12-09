@@ -1,0 +1,23 @@
+[package]
+name = "jugar-core"
+description = "Core ECS, Game Loop, and State Management for Jugar game engine"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords = ["ecs", "game-loop", "state-management", "wasm"]
+categories = ["game-engines", "data-structures"]
+
+[dependencies]
+glam = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true

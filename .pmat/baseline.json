@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "project": "jugar",
+  "created": "2025-12-08T00:00:00Z",
+  "baseline": {
+    "coverage": 0.0,
+    "mutation_score": 0.0,
+    "tdg_grade": "N/A",
+    "repo_score": 0,
+    "rust_project_score": 0,
+    "complexity": {
+      "max_cyclomatic": 0,
+      "max_cognitive": 0
+    },
+    "defects": {
+      "unwrap_calls": 0,
+      "expect_calls": 0,
+      "panic_calls": 0
+    },
+    "wasm": {
+      "binary_size_bytes": 0
+    }
+  },
+  "notes": "Initial baseline - project in specification phase"
+}

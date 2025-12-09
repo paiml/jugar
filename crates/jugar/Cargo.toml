@@ -1,0 +1,31 @@
+[package]
+name = "jugar"
+description = "WASM-native universal game engine - entry point"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+jugar-core = { path = "../jugar-core" }
+jugar-physics = { path = "../jugar-physics" }
+jugar-ai = { path = "../jugar-ai" }
+jugar-render = { path = "../jugar-render" }
+jugar-ui = { path = "../jugar-ui" }
+jugar-input = { path = "../jugar-input" }
+jugar-audio = { path = "../jugar-audio" }
+jugar-procgen = { path = "../jugar-procgen" }
+glam = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true
