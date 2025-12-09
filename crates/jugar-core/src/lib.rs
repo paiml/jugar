@@ -49,6 +49,7 @@ pub enum CoreError {
 pub type Result<T> = core::result::Result<T, CoreError>;
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

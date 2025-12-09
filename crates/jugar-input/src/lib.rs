@@ -432,6 +432,7 @@ impl InputAction {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -496,8 +497,7 @@ mod tests {
         state.touches.push(TouchEvent::new(Vec2::new(50.0, 50.0)));
 
         let pointer = state.primary_pointer();
-        assert!(pointer.is_some());
-        assert_eq!(pointer.unwrap(), Vec2::new(50.0, 50.0));
+        assert_eq!(pointer, Some(Vec2::new(50.0, 50.0)));
     }
 
     #[test]
@@ -507,8 +507,7 @@ mod tests {
         state.mouse_buttons[0] = ButtonState::Pressed;
 
         let pointer = state.primary_pointer();
-        assert!(pointer.is_some());
-        assert_eq!(pointer.unwrap(), Vec2::new(100.0, 100.0));
+        assert_eq!(pointer, Some(Vec2::new(100.0, 100.0)));
     }
 
     #[test]

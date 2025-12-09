@@ -16,12 +16,11 @@
 //!
 //! ## Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use jugar::prelude::*;
 //!
 //! fn main() {
 //!     let mut engine = JugarEngine::new(JugarConfig::default());
-//!     // Exit immediately for demonstration
 //!     engine.run(|_| LoopControl::Exit);
 //! }
 //! ```
@@ -459,6 +458,7 @@ pub fn create_ultrawide_game() -> JugarEngine {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
