@@ -372,6 +372,32 @@ impl InputState {
     pub fn clear_touches(&mut self) {
         self.touches.clear();
     }
+
+    /// Checks if a key is currently pressed (down)
+    #[must_use]
+    pub fn is_key_pressed(&self, key: KeyCode) -> bool {
+        self.key(key).is_down()
+    }
+
+    /// Sets a key as pressed or released
+    pub fn set_key_pressed(&mut self, key: KeyCode, pressed: bool) {
+        let state = if pressed {
+            ButtonState::Pressed
+        } else {
+            ButtonState::Released
+        };
+        self.set_key(key, state);
+    }
+
+    /// Clears transient input events (advances frame states, clears touches with ended/cancelled phase)
+    pub fn clear_events(&mut self) {
+        // Remove ended/cancelled touches
+        self.touches
+            .retain(|t| !matches!(t.phase, TouchPhase::Ended | TouchPhase::Cancelled));
+
+        // Advance button states (JustPressed -> Pressed, JustReleased -> Released)
+        self.advance_frame();
+    }
 }
 
 /// Action binding for input abstraction

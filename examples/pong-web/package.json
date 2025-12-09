@@ -1,0 +1,17 @@
+{
+  "name": "pong-web",
+  "version": "1.0.0",
+  "description": "Pong game e2e tests for Jugar WASM engine",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "1.57.0"
+  }
+}

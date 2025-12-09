@@ -10,6 +10,7 @@ members = [
     "crates/jugar-input",
     "crates/jugar-audio",
     "crates/jugar-procgen",
+    "crates/jugar-web",
     "examples/universal_pong",
 ]
 
@@ -26,7 +27,7 @@ categories = ["game-engines", "wasm", "graphics", "no-std"]
 
 [workspace.dependencies]
 # Core dependencies (from trueno/aprender ecosystem)
-trueno = "0.4"      # SIMD compute layer
+trueno = "0.8"      # SIMD compute layer
 aprender = "0.6"    # AI/ML layer
 
 # WASM dependencies
