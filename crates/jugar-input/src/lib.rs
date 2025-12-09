@@ -442,11 +442,14 @@ impl InputAction {
 mod tests {
     use super::*;
 
+    // ==================== BUTTON STATE TESTS ====================
+
     #[test]
     fn test_button_state_advance() {
         assert_eq!(ButtonState::JustPressed.advance(), ButtonState::Pressed);
         assert_eq!(ButtonState::JustReleased.advance(), ButtonState::Released);
         assert_eq!(ButtonState::Pressed.advance(), ButtonState::Pressed);
+        assert_eq!(ButtonState::Released.advance(), ButtonState::Released);
     }
 
     #[test]
@@ -454,9 +457,20 @@ mod tests {
         assert!(ButtonState::JustPressed.is_down());
         assert!(ButtonState::Pressed.is_down());
         assert!(!ButtonState::Released.is_down());
+        assert!(!ButtonState::JustReleased.is_down());
         assert!(ButtonState::JustPressed.just_pressed());
+        assert!(!ButtonState::Pressed.just_pressed());
         assert!(ButtonState::JustReleased.just_released());
+        assert!(!ButtonState::Released.just_released());
     }
+
+    #[test]
+    fn test_button_state_default() {
+        let state = ButtonState::default();
+        assert_eq!(state, ButtonState::Released);
+    }
+
+    // ==================== TOUCH EVENT TESTS ====================
 
     #[test]
     fn test_touch_event() {
@@ -466,6 +480,27 @@ mod tests {
 
         assert_eq!(touch.id, 1);
         assert_eq!(touch.phase, TouchPhase::Moved);
+        assert!((touch.position.x - 100.0).abs() < f32::EPSILON);
+        assert!((touch.position.y - 200.0).abs() < f32::EPSILON);
+        assert!((touch.pressure - 1.0).abs() < f32::EPSILON);
+        assert_eq!(touch.delta, Vec2::ZERO);
+    }
+
+    #[test]
+    fn test_touch_event_defaults() {
+        let touch = TouchEvent::new(Vec2::new(50.0, 50.0));
+        assert_eq!(touch.id, 0);
+        assert_eq!(touch.phase, TouchPhase::Started);
+    }
+
+    // ==================== INPUT STATE TESTS ====================
+
+    #[test]
+    fn test_input_state_new() {
+        let state = InputState::new();
+        assert_eq!(state.mouse_position, Vec2::ZERO);
+        assert_eq!(state.mouse_delta, Vec2::ZERO);
+        assert!(state.touches.is_empty());
     }
 
     #[test]
@@ -476,6 +511,19 @@ mod tests {
 
         assert!(state.mouse_button(MouseButton::Left).is_down());
         assert!(!state.mouse_button(MouseButton::Right).is_down());
+        assert!(!state.mouse_button(MouseButton::Middle).is_down());
+    }
+
+    #[test]
+    fn test_input_state_mouse_extra_buttons() {
+        let mut state = InputState::new();
+        state.mouse_buttons[3] = ButtonState::Pressed;
+        state.mouse_buttons[4] = ButtonState::Pressed;
+
+        assert!(state.mouse_button(MouseButton::Extra(0)).is_down());
+        assert!(state.mouse_button(MouseButton::Extra(1)).is_down());
+        // Out of range should return Released
+        assert!(!state.mouse_button(MouseButton::Extra(10)).is_down());
     }
 
     #[test]
@@ -491,11 +539,70 @@ mod tests {
     fn test_input_state_advance() {
         let mut state = InputState::new();
         state.mouse_buttons[0] = ButtonState::JustPressed;
+        state.set_key(KeyCode::Space, ButtonState::JustPressed);
+        state.mouse_delta = Vec2::new(10.0, 20.0);
 
         state.advance_frame();
 
         assert_eq!(state.mouse_buttons[0], ButtonState::Pressed);
+        assert_eq!(state.key(KeyCode::Space), ButtonState::Pressed);
+        assert_eq!(state.mouse_delta, Vec2::ZERO);
     }
+
+    #[test]
+    fn test_input_state_advance_gamepad() {
+        let mut state = InputState::new();
+        state.gamepads[0].connected = true;
+        state.gamepads[0].buttons[0] = ButtonState::JustPressed;
+
+        state.advance_frame();
+
+        assert_eq!(state.gamepads[0].buttons[0], ButtonState::Pressed);
+    }
+
+    #[test]
+    fn test_input_state_clear_touches() {
+        let mut state = InputState::new();
+        state.touches.push(TouchEvent::new(Vec2::new(50.0, 50.0)));
+        state.touches.push(TouchEvent::new(Vec2::new(100.0, 100.0)));
+
+        state.clear_touches();
+
+        assert!(state.touches.is_empty());
+    }
+
+    #[test]
+    fn test_input_state_has_input() {
+        let mut state = InputState::new();
+        assert!(!state.has_input());
+
+        state.mouse_buttons[0] = ButtonState::Pressed;
+        assert!(state.has_input());
+
+        state.mouse_buttons[0] = ButtonState::Released;
+        state.touches.push(TouchEvent::new(Vec2::ZERO));
+        assert!(state.has_input());
+    }
+
+    #[test]
+    fn test_input_state_has_input_gamepad() {
+        let mut state = InputState::new();
+        assert!(!state.has_input());
+
+        state.gamepads[0].connected = true;
+        assert!(state.has_input());
+    }
+
+    #[test]
+    fn test_input_state_has_input_keys() {
+        let mut state = InputState::new();
+        assert!(!state.has_input());
+
+        state.set_key(KeyCode::Space, ButtonState::Pressed);
+        assert!(state.has_input());
+    }
+
+    // ==================== PRIMARY POINTER TESTS ====================
 
     #[test]
     fn test_primary_pointer_touch() {
@@ -517,6 +624,27 @@ mod tests {
     }
 
     #[test]
+    fn test_primary_pointer_none() {
+        let state = InputState::new();
+        let pointer = state.primary_pointer();
+        assert_eq!(pointer, None);
+    }
+
+    #[test]
+    fn test_primary_pointer_touch_priority() {
+        let mut state = InputState::new();
+        state.mouse_position = Vec2::new(100.0, 100.0);
+        state.mouse_buttons[0] = ButtonState::Pressed;
+        state.touches.push(TouchEvent::new(Vec2::new(50.0, 50.0)));
+
+        // Touch should take priority over mouse
+        let pointer = state.primary_pointer();
+        assert_eq!(pointer, Some(Vec2::new(50.0, 50.0)));
+    }
+
+    // ==================== GAMEPAD STATE TESTS ====================
+
+    #[test]
     fn test_gamepad_state() {
         let mut gamepad = GamepadState::default();
         gamepad.axes[0] = 0.5; // Left stick X
@@ -526,6 +654,38 @@ mod tests {
         assert!((stick.x - 0.5).abs() < f32::EPSILON);
         assert!((stick.y - (-0.3)).abs() < f32::EPSILON);
     }
+
+    #[test]
+    fn test_gamepad_right_stick() {
+        let mut gamepad = GamepadState::default();
+        gamepad.axes[2] = 0.7; // Right stick X
+        gamepad.axes[3] = 0.8; // Right stick Y
+
+        let stick = gamepad.right_stick();
+        assert!((stick.x - 0.7).abs() < f32::EPSILON);
+        assert!((stick.y - 0.8).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_gamepad_button() {
+        let mut gamepad = GamepadState::default();
+        gamepad.buttons[0] = ButtonState::Pressed;
+
+        assert!(gamepad.button(GamepadButton::South).is_down());
+        assert!(!gamepad.button(GamepadButton::North).is_down());
+    }
+
+    #[test]
+    fn test_gamepad_axis() {
+        let mut gamepad = GamepadState::default();
+        gamepad.axes[4] = 0.5; // Left trigger
+        gamepad.axes[5] = 0.8; // Right trigger
+
+        assert!((gamepad.axis(GamepadAxis::LeftTrigger) - 0.5).abs() < f32::EPSILON);
+        assert!((gamepad.axis(GamepadAxis::RightTrigger) - 0.8).abs() < f32::EPSILON);
+    }
+
+    // ==================== INPUT ACTION TESTS ====================
 
     #[test]
     fn test_input_action() {
@@ -538,5 +698,57 @@ mod tests {
 
         state.set_key(KeyCode::Space, ButtonState::Pressed);
         assert!(action.is_active(&state));
+    }
+
+    #[test]
+    fn test_input_action_with_mouse() {
+        let action = InputAction::new("fire").with_mouse_button(MouseButton::Left);
+
+        let mut state = InputState::new();
+        assert!(!action.is_active(&state));
+
+        state.mouse_buttons[0] = ButtonState::Pressed;
+        assert!(action.is_active(&state));
+    }
+
+    #[test]
+    fn test_input_action_with_gamepad() {
+        let action = InputAction::new("jump").with_gamepad_button(GamepadButton::South);
+
+        let mut state = InputState::new();
+        assert!(!action.is_active(&state));
+
+        state.gamepads[0].connected = true;
+        state.gamepads[0].buttons[0] = ButtonState::Pressed;
+        assert!(action.is_active(&state));
+    }
+
+    #[test]
+    fn test_input_action_name() {
+        let action = InputAction::new("test_action");
+        assert_eq!(action.name, "test_action");
+    }
+
+    // ==================== INPUT DEVICE TESTS ====================
+
+    #[test]
+    fn test_input_device_variants() {
+        // Test that all variants can be constructed
+        assert_eq!(InputDevice::Touch, InputDevice::Touch);
+        assert_eq!(InputDevice::Mouse, InputDevice::Mouse);
+        assert_eq!(InputDevice::Keyboard, InputDevice::Keyboard);
+        assert_eq!(InputDevice::Gamepad(0), InputDevice::Gamepad(0));
+        assert_ne!(InputDevice::Gamepad(0), InputDevice::Gamepad(1));
+    }
+
+    // ==================== INPUT ERROR TESTS ====================
+
+    #[test]
+    fn test_input_error_display() {
+        let err = InputError::GamepadNotConnected(2);
+        let msg = format!("{err}");
+        assert!(msg.contains("Gamepad"));
+        assert!(msg.contains('2'));
+        assert!(msg.contains("not connected"));
     }
 }

@@ -471,6 +471,29 @@ mod tests {
     }
 
     #[test]
+    fn test_position_default() {
+        let pos = Position::default();
+        assert!((pos.x).abs() < f32::EPSILON);
+        assert!((pos.y).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_position_as_vec2() {
+        let pos = Position::new(10.0, 20.0);
+        let v = pos.as_vec2();
+        assert!((v.x - 10.0).abs() < f32::EPSILON);
+        assert!((v.y - 20.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_position_from_vec2() {
+        let v = Vec2::new(10.0, 20.0);
+        let pos = Position::from_vec2(v);
+        assert!((pos.x - 10.0).abs() < f32::EPSILON);
+        assert!((pos.y - 20.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
     fn test_position_distance() {
         let p1 = Position::new(0.0, 0.0);
         let p2 = Position::new(3.0, 4.0);
@@ -484,6 +507,27 @@ mod tests {
     }
 
     // ==================== VELOCITY TESTS ====================
+
+    #[test]
+    fn test_velocity_new() {
+        let vel = Velocity::new(1.0, 2.0);
+        assert!((vel.x - 1.0).abs() < f32::EPSILON);
+        assert!((vel.y - 2.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_velocity_zero() {
+        let vel = Velocity::zero();
+        assert!((vel.x).abs() < f32::EPSILON);
+        assert!((vel.y).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_velocity_default() {
+        let vel = Velocity::default();
+        assert!((vel.x).abs() < f32::EPSILON);
+        assert!((vel.y).abs() < f32::EPSILON);
+    }
 
     #[test]
     fn test_velocity_speed() {
@@ -514,22 +558,88 @@ mod tests {
         assert!((scaled.y - 4.0).abs() < f32::EPSILON);
     }
 
+    #[test]
+    fn test_velocity_display() {
+        let vel = Velocity::new(1.5, 2.5);
+        assert_eq!(format!("{vel}"), "vel(1.50, 2.50)");
+    }
+
     // ==================== ANCHOR TESTS ====================
 
     #[test]
     fn test_anchor_normalized() {
         assert_eq!(Anchor::TopLeft.normalized(), (0.0, 0.0));
+        assert_eq!(Anchor::TopCenter.normalized(), (0.5, 0.0));
+        assert_eq!(Anchor::TopRight.normalized(), (1.0, 0.0));
+        assert_eq!(Anchor::MiddleLeft.normalized(), (0.0, 0.5));
         assert_eq!(Anchor::Center.normalized(), (0.5, 0.5));
+        assert_eq!(Anchor::MiddleRight.normalized(), (1.0, 0.5));
+        assert_eq!(Anchor::BottomLeft.normalized(), (0.0, 1.0));
+        assert_eq!(Anchor::BottomCenter.normalized(), (0.5, 1.0));
         assert_eq!(Anchor::BottomRight.normalized(), (1.0, 1.0));
+        assert_eq!(Anchor::Stretch.normalized(), (0.5, 0.5));
+    }
+
+    #[test]
+    fn test_anchor_default() {
+        let anchor = Anchor::default();
+        assert_eq!(anchor, Anchor::Center);
     }
 
     #[test]
     fn test_anchor_display() {
         assert_eq!(format!("{}", Anchor::TopLeft), "top-left");
+        assert_eq!(format!("{}", Anchor::TopCenter), "top-center");
+        assert_eq!(format!("{}", Anchor::TopRight), "top-right");
+        assert_eq!(format!("{}", Anchor::MiddleLeft), "middle-left");
         assert_eq!(format!("{}", Anchor::Center), "center");
+        assert_eq!(format!("{}", Anchor::MiddleRight), "middle-right");
+        assert_eq!(format!("{}", Anchor::BottomLeft), "bottom-left");
+        assert_eq!(format!("{}", Anchor::BottomCenter), "bottom-center");
+        assert_eq!(format!("{}", Anchor::BottomRight), "bottom-right");
+        assert_eq!(format!("{}", Anchor::Stretch), "stretch");
+    }
+
+    // ==================== SCALE MODE TESTS ====================
+
+    #[test]
+    fn test_scale_mode_default() {
+        let mode = ScaleMode::default();
+        assert_eq!(mode, ScaleMode::Adaptive);
     }
 
     // ==================== UI ELEMENT TESTS ====================
+
+    #[test]
+    fn test_ui_element_new() {
+        let elem = UiElement::new(Vec2::new(100.0, 50.0));
+        assert_eq!(elem.anchor, Anchor::Center);
+        assert_eq!(elem.offset, Vec2::ZERO);
+        assert!(elem.visible);
+        assert_eq!(elem.z_order, 0);
+        assert_eq!(elem.scale_mode, ScaleMode::Adaptive);
+    }
+
+    #[test]
+    fn test_ui_element_default() {
+        let elem = UiElement::default();
+        assert!((elem.size.x - 100.0).abs() < f32::EPSILON);
+        assert!((elem.size.y - 100.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_ui_element_builders() {
+        let elem = UiElement::new(Vec2::new(100.0, 50.0))
+            .with_anchor(Anchor::TopLeft)
+            .with_offset(Vec2::new(10.0, 20.0))
+            .with_scale_mode(ScaleMode::PixelPerfect)
+            .with_z_order(5);
+
+        assert_eq!(elem.anchor, Anchor::TopLeft);
+        assert_eq!(elem.offset, Vec2::new(10.0, 20.0));
+        assert_eq!(elem.scale_mode, ScaleMode::PixelPerfect);
+        assert_eq!(elem.z_order, 5);
+    }
 
     #[test]
     fn test_ui_element_position_calculation() {
@@ -551,7 +661,43 @@ mod tests {
         assert!((pos.y - 300.0).abs() < f32::EPSILON);
     }
 
+    #[test]
+    fn test_ui_element_bottom_right_position() {
+        let elem = UiElement::new(Vec2::new(100.0, 50.0)).with_anchor(Anchor::BottomRight);
+
+        let pos = elem.calculate_position(Vec2::new(800.0, 600.0));
+        assert!((pos.x - 800.0).abs() < f32::EPSILON);
+        assert!((pos.y - 600.0).abs() < f32::EPSILON);
+    }
+
     // ==================== RECT TESTS ====================
+
+    #[test]
+    fn test_rect_new() {
+        let rect = Rect::new(10.0, 20.0, 100.0, 50.0);
+        assert!((rect.x - 10.0).abs() < f32::EPSILON);
+        assert!((rect.y - 20.0).abs() < f32::EPSILON);
+        assert!((rect.width - 100.0).abs() < f32::EPSILON);
+        assert!((rect.height - 50.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_rect_from_size() {
+        let rect = Rect::from_size(100.0, 50.0);
+        assert!((rect.x).abs() < f32::EPSILON);
+        assert!((rect.y).abs() < f32::EPSILON);
+        assert!((rect.width - 100.0).abs() < f32::EPSILON);
+        assert!((rect.height - 50.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_rect_default() {
+        let rect = Rect::default();
+        assert!((rect.x).abs() < f32::EPSILON);
+        assert!((rect.y).abs() < f32::EPSILON);
+        assert!((rect.width - 1.0).abs() < f32::EPSILON);
+        assert!((rect.height - 1.0).abs() < f32::EPSILON);
+    }
 
     #[test]
     fn test_rect_contains_point() {
@@ -559,6 +705,7 @@ mod tests {
         assert!(rect.contains_point(50.0, 30.0));
         assert!(!rect.contains_point(0.0, 0.0));
         assert!(rect.contains_point(10.0, 10.0)); // Edge
+        assert!(rect.contains_point(110.0, 60.0)); // Other edge
     }
 
     #[test]
@@ -579,11 +726,54 @@ mod tests {
         assert!((cy - 25.0).abs() < f32::EPSILON);
     }
 
+    // ==================== SPRITE TESTS ====================
+
+    #[test]
+    fn test_sprite_new() {
+        let sprite = Sprite::new(42);
+        assert_eq!(sprite.texture_id, 42);
+        assert!(sprite.source.is_none());
+        assert!(!sprite.flip_x);
+        assert!(!sprite.flip_y);
+    }
+
+    #[test]
+    fn test_sprite_default() {
+        let sprite = Sprite::default();
+        assert_eq!(sprite.texture_id, 0);
+    }
+
+    #[test]
+    fn test_sprite_with_source() {
+        let sprite = Sprite::new(1).with_source(Rect::new(0.0, 0.0, 32.0, 32.0));
+        assert!(sprite.source.is_some());
+        let src = sprite.source.unwrap();
+        assert!((src.width - 32.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_sprite_with_color() {
+        let sprite = Sprite::new(1).with_color(1.0, 0.5, 0.0, 0.8);
+        assert!((sprite.color[0] - 1.0).abs() < f32::EPSILON);
+        assert!((sprite.color[1] - 0.5).abs() < f32::EPSILON);
+        assert!((sprite.color[2] - 0.0).abs() < f32::EPSILON);
+        assert!((sprite.color[3] - 0.8).abs() < f32::EPSILON);
+    }
+
     // ==================== CAMERA TESTS ====================
 
     #[test]
-    fn test_camera_default() {
+    fn test_camera_new() {
         let cam = Camera::new();
+        assert!((cam.zoom - 1.0).abs() < f32::EPSILON);
+        assert!(cam.keep_aspect);
+        assert!(cam.target_resolution.is_none());
+        assert!((cam.fov - 60.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_camera_default() {
+        let cam = Camera::default();
         assert!((cam.zoom - 1.0).abs() < f32::EPSILON);
         assert!(cam.keep_aspect);
     }
@@ -594,5 +784,19 @@ mod tests {
         assert!(cam.target_resolution.is_some());
         let res = cam.target_resolution.unwrap();
         assert!((res.x - 320.0).abs() < f32::EPSILON);
+        assert!((res.y - 240.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_camera_with_zoom() {
+        let cam = Camera::new().with_zoom(2.0);
+        assert!((cam.zoom - 2.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_camera_with_position() {
+        let cam = Camera::new().with_position(Position::new(100.0, 200.0));
+        assert!((cam.position.x - 100.0).abs() < f32::EPSILON);
+        assert!((cam.position.y - 200.0).abs() < f32::EPSILON);
     }
 }

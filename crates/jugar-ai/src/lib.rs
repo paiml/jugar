@@ -383,6 +383,13 @@ mod tests {
     }
 
     #[test]
+    fn test_world_state_test_helper() {
+        let state = WorldState::test();
+        assert!(!state.get("has_weapon"));
+        assert!(state.get("enemy_visible"));
+    }
+
+    #[test]
     fn test_world_state_satisfies() {
         let mut state = WorldState::new();
         state.set("has_weapon", true);
@@ -419,6 +426,22 @@ mod tests {
     }
 
     #[test]
+    fn test_action_with_cost() {
+        let action = Action::new("expensive_action").with_cost(5.0);
+        assert!((action.cost - 5.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_action_equality() {
+        let action1 = Action::new("attack").with_cost(1.0);
+        let action2 = Action::new("attack").with_cost(2.0);
+        let action3 = Action::new("defend");
+
+        assert_eq!(action1, action2); // Same name = equal
+        assert_ne!(action1, action3);
+    }
+
+    #[test]
     fn test_goal_satisfied() {
         let goal = Goal::new("be_armed").with_condition("has_weapon", true);
 
@@ -427,6 +450,12 @@ mod tests {
 
         state.set("has_weapon", true);
         assert!(goal.is_satisfied(&state));
+    }
+
+    #[test]
+    fn test_goal_with_priority() {
+        let goal = Goal::new("high_priority").with_priority(10.0);
+        assert!((goal.priority - 10.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -457,8 +486,189 @@ mod tests {
     }
 
     #[test]
+    fn test_planner_no_plan_found() {
+        let planner = Planner::new();
+
+        let state = WorldState::new();
+        let goal = Goal::new("impossible").with_condition("has_magic", true);
+
+        let result = planner.plan(&state, &goal);
+        assert!(matches!(result, Err(AiError::NoPlanFound)));
+    }
+
+    #[test]
+    fn test_planner_default() {
+        let planner = Planner::default();
+        assert!(format!("{planner:?}").contains("action_count"));
+    }
+
+    #[test]
+    fn test_planner_multi_step_plan() {
+        let mut planner = Planner::new();
+
+        planner.add_action(Action::new("pickup_weapon").with_effect("has_weapon", true));
+        planner.add_action(
+            Action::new("attack")
+                .with_precondition("has_weapon", true)
+                .with_effect("enemy_dead", true),
+        );
+
+        let state = WorldState::new();
+        let goal = Goal::new("win").with_condition("enemy_dead", true);
+
+        let plan = planner.plan(&state, &goal).unwrap();
+        assert_eq!(plan.len(), 2);
+        assert_eq!(plan[0].name, "pickup_weapon");
+        assert_eq!(plan[1].name, "attack");
+    }
+
+    #[test]
     fn test_node_status() {
         assert_ne!(NodeStatus::Running, NodeStatus::Success);
         assert_ne!(NodeStatus::Success, NodeStatus::Failure);
+    }
+
+    // Simple test node for behavior tree testing
+    #[derive(Debug)]
+    struct TestNode {
+        ticks: usize,
+        max_ticks: usize,
+        result: NodeStatus,
+    }
+
+    impl TestNode {
+        fn new(max_ticks: usize, result: NodeStatus) -> Self {
+            Self {
+                ticks: 0,
+                max_ticks,
+                result,
+            }
+        }
+
+        fn immediate(result: NodeStatus) -> Self {
+            Self::new(0, result)
+        }
+    }
+
+    impl BehaviorNode for TestNode {
+        fn tick(&mut self, _dt: f32) -> NodeStatus {
+            if self.ticks < self.max_ticks {
+                self.ticks += 1;
+                NodeStatus::Running
+            } else {
+                self.result
+            }
+        }
+
+        fn reset(&mut self) {
+            self.ticks = 0;
+        }
+    }
+
+    #[test]
+    fn test_sequence_all_success() {
+        let mut seq = Sequence::new(vec![
+            Box::new(TestNode::immediate(NodeStatus::Success)),
+            Box::new(TestNode::immediate(NodeStatus::Success)),
+        ]);
+
+        assert_eq!(seq.tick(0.016), NodeStatus::Success);
+    }
+
+    #[test]
+    fn test_sequence_with_failure() {
+        let mut seq = Sequence::new(vec![
+            Box::new(TestNode::immediate(NodeStatus::Success)),
+            Box::new(TestNode::immediate(NodeStatus::Failure)),
+        ]);
+
+        assert_eq!(seq.tick(0.016), NodeStatus::Failure);
+    }
+
+    #[test]
+    fn test_sequence_with_running() {
+        let mut seq = Sequence::new(vec![
+            Box::new(TestNode::new(2, NodeStatus::Success)),
+            Box::new(TestNode::immediate(NodeStatus::Success)),
+        ]);
+
+        assert_eq!(seq.tick(0.016), NodeStatus::Running);
+        assert_eq!(seq.tick(0.016), NodeStatus::Running);
+        assert_eq!(seq.tick(0.016), NodeStatus::Success);
+    }
+
+    #[test]
+    fn test_sequence_reset() {
+        let mut seq = Sequence::new(vec![
+            Box::new(TestNode::new(1, NodeStatus::Success)),
+            Box::new(TestNode::immediate(NodeStatus::Success)),
+        ]);
+
+        assert_eq!(seq.tick(0.016), NodeStatus::Running);
+        seq.reset();
+        assert_eq!(seq.tick(0.016), NodeStatus::Running);
+    }
+
+    #[test]
+    fn test_selector_first_success() {
+        let mut sel = Selector::new(vec![
+            Box::new(TestNode::immediate(NodeStatus::Success)),
+            Box::new(TestNode::immediate(NodeStatus::Success)),
+        ]);
+
+        assert_eq!(sel.tick(0.016), NodeStatus::Success);
+    }
+
+    #[test]
+    fn test_selector_fallback() {
+        let mut sel = Selector::new(vec![
+            Box::new(TestNode::immediate(NodeStatus::Failure)),
+            Box::new(TestNode::immediate(NodeStatus::Success)),
+        ]);
+
+        assert_eq!(sel.tick(0.016), NodeStatus::Success);
+    }
+
+    #[test]
+    fn test_selector_all_fail() {
+        let mut sel = Selector::new(vec![
+            Box::new(TestNode::immediate(NodeStatus::Failure)),
+            Box::new(TestNode::immediate(NodeStatus::Failure)),
+        ]);
+
+        assert_eq!(sel.tick(0.016), NodeStatus::Failure);
+    }
+
+    #[test]
+    fn test_selector_with_running() {
+        let mut sel = Selector::new(vec![
+            Box::new(TestNode::new(2, NodeStatus::Failure)),
+            Box::new(TestNode::immediate(NodeStatus::Success)),
+        ]);
+
+        assert_eq!(sel.tick(0.016), NodeStatus::Running);
+        assert_eq!(sel.tick(0.016), NodeStatus::Running);
+        assert_eq!(sel.tick(0.016), NodeStatus::Success);
+    }
+
+    #[test]
+    fn test_selector_reset() {
+        let mut sel = Selector::new(vec![
+            Box::new(TestNode::new(1, NodeStatus::Failure)),
+            Box::new(TestNode::immediate(NodeStatus::Success)),
+        ]);
+
+        assert_eq!(sel.tick(0.016), NodeStatus::Running);
+        sel.reset();
+        assert_eq!(sel.tick(0.016), NodeStatus::Running);
+    }
+
+    #[test]
+    fn test_ai_error_display() {
+        let err1 = AiError::NoPlanFound;
+        assert!(format!("{err1}").contains("No valid plan"));
+
+        let err2 = AiError::PreconditionsNotMet("test".to_string());
+        assert!(format!("{err2}").contains("test"));
     }
 }
