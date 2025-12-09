@@ -19,3 +19,22 @@ target
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# PMAT artifacts (preserve baseline and config)
+.pmat/embeddings/
+.pmat/work/
+.pmat/history/
+.pmat-metrics/trends/
+.pmat-metrics/baselines/
+
+# Generated context files
+deep_context.md
+
+# Coverage reports
+lcov.info
+
+# Kaizen analysis
+.kaizen/
+
+# WASM artifacts (if not in target/)
+*.wasm

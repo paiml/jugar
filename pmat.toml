@@ -1,0 +1,299 @@
+# PMAT Configuration for Jugar
+# WASM-native universal game engine with EXTREME TDD standards
+# paiml-mcp-agent-toolkit v2.200.0+
+
+[project]
+name = "jugar"
+version = "0.1.0"
+language = "rust"
+description = "WASM-native universal game engine (mobile to 49\" ultrawide)"
+
+# Quality Gate Thresholds (aligned with CLAUDE.md requirements)
+[quality_gate]
+# Coverage (95% minimum per CLAUDE.md)
+min_test_coverage = 95.0
+target_test_coverage = 98.0
+
+# Complexity (strict for game engine code)
+max_cyclomatic_complexity = 20
+max_cognitive_complexity = 15
+
+# Technical Debt
+max_satd_comments = 0  # Zero tolerance for TODO/FIXME/HACK
+max_code_duplication_percentage = 5.0
+
+# Mutation Testing
+min_mutation_score = 80.0  # 80% kill rate minimum
+
+# Repository Health
+min_repo_score = 90  # 90/110 minimum
+target_repo_score = 100
+
+# Rust Project Score (new in v2.171.0)
+min_rust_project_score = 150  # 150/211 minimum (71% - good quality)
+target_rust_project_score = 180  # 180/211 target (85% - excellent)
+
+# Known Defects (v2.200.0)
+[known_defects]
+detect_unwrap_calls = true
+fail_on_unwrap = true  # Block commits with .unwrap() in src/
+
+# Detect other panic-inducing patterns
+detect_expect_calls = true
+detect_unreachable_calls = true
+detect_panic_calls = true
+
+# TDG (Technical Debt Grading)
+[tdg]
+min_grade = "B+"  # Minimum B+ (85/100)
+target_grade = "A-"  # Target A- (92/100)
+include_components = true
+enforce_on_commit = true
+auto_fail_on_critical_defects = true
+
+# Baseline tracking for regression detection
+[tdg.baseline]
+path = ".pmat/baseline.json"
+auto_update = false  # Manual updates only
+track_history = true
+history_path = ".pmat/history/"
+
+# Mutation Testing Configuration
+[mutation]
+enabled = true
+timeout_seconds = 120
+parallel = true
+operators = [
+    "arithmetic",
+    "logical",
+    "relational",
+    "boundary",
+    "statement",
+    "loop",
+    "assignment",
+    "return"
+]
+
+# Target paths (will apply to workspace crates)
+include_paths = ["crates/*/src/"]
+exclude_paths = ["examples/", "benches/"]
+
+# Test command
+test_command = "cargo test --all-features"
+
+# Semantic Search Configuration
+[semantic_search]
+enabled = true
+embedding_model = "all-MiniLM-L6-v2"
+index_path = ".pmat/embeddings/"
+auto_sync = true
+
+# Index these paths
+include_paths = ["crates/*/src/", "tests/", "examples/"]
+exclude_paths = ["target/"]
+
+# Documentation Validation (Sprint 38 - v2.195.0+)
+[documentation]
+validate_readme = true
+validate_claude_md = true
+detect_hallucinations = true
+detect_broken_references = true
+detect_404_links = true
+fail_on_contradiction = true
+
+# Deep context for validation
+deep_context_path = "deep_context.md"
+
+# Target documents
+targets = ["README.md", "CLAUDE.md", "docs/**/*.md"]
+
+# Quality Gates (EXTREME TDD enforcement)
+[quality_gates]
+# Pre-commit hooks
+run_on_commit = true
+block_on_failure = true
+
+# Gates to run
+[quality_gates.gates]
+clippy = { enabled = true, strict = true }
+rustfmt = { enabled = true }
+tests = { enabled = true, timeout = 300 }
+coverage = { enabled = true, min = 95.0 }
+complexity = { enabled = true, max_cyclomatic = 20, max_cognitive = 15 }
+satd = { enabled = true, max = 0 }
+mutation = { enabled = false }  # Too slow for pre-commit (use in CI)
+tdg = { enabled = true, min_grade = "B+" }
+defects = { enabled = true, fail_on_unwrap = true }
+
+# Workflow Management (v2.198.0)
+[workflow]
+enabled = true
+backend = "hybrid"  # GitHub Issues + YAML
+github_repo = "paiml/jugar"
+local_storage = ".pmat/work/"
+
+# Pre-commit hook for commit messages
+enforce_commit_format = true
+commit_format = "^(feat|fix|docs|style|refactor|perf|test|chore)(\\(.+\\))?: .{10,}"
+
+# Automatic CHANGELOG.md updates
+auto_changelog = true
+changelog_path = "CHANGELOG.md"
+changelog_format = "keep-a-changelog"
+
+# Rust-Specific Configuration
+[rust]
+# Cargo features to test
+default_features = []
+all_features = true
+
+# MSRV (Minimum Supported Rust Version)
+msrv = "1.75.0"
+
+# WASM target
+wasm_target = "wasm32-unknown-unknown"
+
+# Lints (workspace-level in Cargo.toml)
+enforce_workspace_lints = true
+
+# Documentation
+require_rustdoc = true
+rustdoc_coverage_min = 100.0  # 100% public API documentation
+
+# Benchmarking
+require_benchmarks = true
+benchmark_framework = "criterion"
+
+# Toyota Way Principles (PMAT dogfooding)
+[toyota_way]
+enable_kaizen = true  # Continuous improvement
+enable_jidoka = true  # Built-in quality (automated gates)
+enable_genchi_genbutsu = true  # Go and see (direct AST analysis)
+enable_mcp_first_dogfooding = true  # MCP tools for Claude integration
+
+# Kaizen cycle enforcement
+kaizen_cycle_days = 7  # Weekly quality reviews
+kaizen_metrics = ["coverage", "mutation_score", "tdg_grade", "repo_score"]
+
+# Jidoka automation
+jidoka_pre_commit = true
+jidoka_pre_push = false  # Too slow
+jidoka_ci = true
+
+# MCP Integration
+[mcp]
+enabled = true
+server_port = 3000
+tools = [
+    "validate_documentation",
+    "check_claim",
+    "analyze_technical_debt",
+    "get_quality_recommendations",
+    "analyze",
+    "transform",
+    "validate",
+    "orchestrate",
+    "quality_gate",
+    "semantic_search",
+    "find_similar_code",
+    "cluster_code",
+    "analyze_topics",
+    "mutation_test"
+]
+
+# Paths Configuration
+[paths]
+root = "."
+source = "crates/"
+tests = "tests/"
+benches = "benches/"
+docs = "docs/"
+examples = "examples/"
+
+# Exclusions
+exclude = [
+    "target/",
+    ".git/",
+    "node_modules/",
+    ".kaizen/",
+    ".pmat/",
+    "*.rlib",
+    "*.so",
+    "*.dylib",
+    "*.dll",
+    "*.wasm"
+]
+
+# Reporting Configuration
+[reporting]
+format = "markdown"
+output_dir = "target/pmat-reports/"
+verbose = true
+include_recommendations = true
+include_trends = true
+
+# CI/CD Integration
+[ci]
+enabled = true
+platform = "github_actions"
+fail_fast = false
+
+# Quality gates for CI (stricter than pre-commit)
+[ci.gates]
+clippy = { enabled = true, strict = true }
+rustfmt = { enabled = true }
+tests = { enabled = true, timeout = 600 }
+coverage = { enabled = true, min = 95.0 }
+mutation = { enabled = true, min_score = 80.0 }
+tdg = { enabled = true, min_grade = "B+" }
+repo_score = { enabled = true, min_score = 90 }
+rust_project_score = { enabled = true, min_score = 150 }
+security_audit = { enabled = true }
+defects = { enabled = true, fail_on_unwrap = true }
+documentation = { enabled = true, fail_on_contradiction = true }
+
+# Performance tracking
+benchmark_regression_check = true
+max_regression_percentage = 5.0
+
+# Certeza Framework Integration (Tiered TDD-X)
+[certeza]
+enabled = true
+tiered_workflow = true
+
+# Tier 1: ON-SAVE (sub-second feedback)
+[certeza.tier1]
+targets = ["check", "lint-fast", "test-lib"]
+max_duration_seconds = 5
+
+# Tier 2: ON-COMMIT (1-5 minutes)
+[certeza.tier2]
+targets = ["fmt", "clippy-full", "test-all", "coverage", "pmat-tdg", "satd-check"]
+max_duration_seconds = 300
+
+# Tier 3: ON-MERGE/NIGHTLY (hours)
+[certeza.tier3]
+targets = ["tier2", "mutation", "security-audit", "bench", "pmat-repo-score"]
+max_duration_seconds = 7200
+
+# WASM-Specific Configuration
+[wasm]
+enabled = true
+target = "wasm32-unknown-unknown"
+
+# WASM binary size budget
+max_binary_size_bytes = 2_000_000  # 2MB budget for game engine core
+
+# WebGPU/WebGL2 feature detection
+webgpu_required = false  # Graceful fallback to SIMD
+simd_required = true  # WASM SIMD 128-bit minimum
+
+# Self-diagnostics
+[diagnostics]
+enabled = true
+log_level = "info"
+log_path = "target/pmat.log"
+
+# Version tracking
+pmat_version = "2.200.0"
+last_updated = "2025-12-08"

@@ -1,0 +1,110 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/jugar",
+    "crates/jugar-core",
+    "crates/jugar-physics",
+    "crates/jugar-ai",
+    "crates/jugar-render",
+    "crates/jugar-ui",
+    "crates/jugar-input",
+    "crates/jugar-audio",
+    "crates/jugar-procgen",
+    "examples/universal_pong",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75.0"
+license = "MIT"
+repository = "https://github.com/paiml/jugar"
+homepage = "https://github.com/paiml/jugar"
+authors = ["PAIML Team"]
+keywords = ["game-engine", "wasm", "webgpu", "ecs", "gamedev"]
+categories = ["game-engines", "wasm", "graphics", "no-std"]
+
+[workspace.dependencies]
+# Core dependencies (from trueno/aprender ecosystem)
+trueno = "0.4"      # SIMD compute layer
+aprender = "0.6"    # AI/ML layer
+
+# WASM dependencies
+wasm-bindgen = "0.2"
+web-sys = "0.3"
+js-sys = "0.3"
+
+# ECS and game engine patterns
+hecs = "0.10"       # Lightweight ECS
+
+# Math and linear algebra
+glam = { version = "0.29", features = ["bytemuck", "serde"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3"
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Logging
+log = "0.4"
+
+# Testing
+proptest = "1.5"
+criterion = "0.5"
+
+[workspace.lints.rust]
+# Safety and correctness
+unsafe_code = "warn"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+
+# Prevent common mistakes
+unused_results = "warn"
+unused_must_use = "warn"
+
+[workspace.lints.clippy]
+# PMAT compliance - zero tolerance for panic paths
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unreachable = "deny"
+
+# Code quality
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+
+# Performance
+inefficient_to_string = "warn"
+large_enum_variant = "warn"
+large_stack_arrays = "warn"
+
+# Style consistency
+module_name_repetitions = "allow"  # Common in game engines
+similar_names = "allow"            # Physics code often has similar var names
+
+# WASM compatibility
+std_instead_of_core = "warn"
+std_instead_of_alloc = "warn"
+
+[profile.dev]
+opt-level = 1  # Faster dev builds for game iteration
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+[profile.release-wasm]
+inherits = "release"
+opt-level = "z"    # Optimize for size
+lto = "fat"        # Maximum LTO for WASM
+panic = "abort"    # Smaller WASM size
+strip = true       # Strip symbols
+
+[profile.bench]
+inherits = "release"
+debug = true  # For profiling
