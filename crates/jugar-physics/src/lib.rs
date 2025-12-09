@@ -251,6 +251,29 @@ mod tests {
         let body = RigidBody::new(Position::new(10.0, 20.0));
         assert!((body.position.x - 10.0).abs() < f32::EPSILON);
         assert!(!body.is_static);
+        assert!((body.mass - 1.0).abs() < f32::EPSILON);
+        assert!((body.restitution - 0.5).abs() < f32::EPSILON);
+        assert!((body.friction - 0.3).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_rigid_body_default() {
+        let body = RigidBody::default();
+        assert!((body.position.x).abs() < f32::EPSILON);
+        assert!((body.position.y).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_rigid_body_with_velocity() {
+        let body = RigidBody::new(Position::zero()).with_velocity(Velocity::new(5.0, 10.0));
+        assert!((body.velocity.x - 5.0).abs() < f32::EPSILON);
+        assert!((body.velocity.y - 10.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_rigid_body_with_mass() {
+        let body = RigidBody::new(Position::zero()).with_mass(5.0);
+        assert!((body.mass - 5.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -261,11 +284,49 @@ mod tests {
     }
 
     #[test]
+    fn test_physics_world_new() {
+        let world = PhysicsWorld::new();
+        assert_eq!(world.backend(), PhysicsBackend::WasmSimd);
+        assert_eq!(world.body_count(), 0);
+    }
+
+    #[test]
+    fn test_physics_world_default() {
+        let world = PhysicsWorld::default();
+        assert_eq!(world.body_count(), 0);
+    }
+
+    #[test]
+    fn test_physics_world_with_backend() {
+        let world = PhysicsWorld::with_backend(PhysicsBackend::Scalar);
+        assert_eq!(world.backend(), PhysicsBackend::Scalar);
+    }
+
+    #[test]
     fn test_physics_world_add_body() {
         let mut world = PhysicsWorld::new();
         let handle = world.add_body(RigidBody::default());
         assert_eq!(world.body_count(), 1);
         assert!(world.get_body(handle).is_some());
+    }
+
+    #[test]
+    fn test_physics_world_get_body_mut() {
+        let mut world = PhysicsWorld::new();
+        let handle = world.add_body(RigidBody::new(Position::new(0.0, 0.0)));
+
+        if let Some(body) = world.get_body_mut(handle) {
+            body.position.x = 100.0;
+        }
+
+        let body = world.get_body(handle).unwrap();
+        assert!((body.position.x - 100.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_physics_world_get_invalid_handle() {
+        let world = PhysicsWorld::new();
+        assert!(world.get_body(BodyHandle(999)).is_none());
     }
 
     #[test]
@@ -327,5 +388,59 @@ mod tests {
     fn test_backend_display() {
         assert_eq!(format!("{}", PhysicsBackend::WebGpu), "WebGPU");
         assert_eq!(format!("{}", PhysicsBackend::WasmSimd), "WASM-SIMD");
+        assert_eq!(format!("{}", PhysicsBackend::Scalar), "Scalar");
+    }
+
+    #[test]
+    fn test_backend_default() {
+        let backend = PhysicsBackend::default();
+        assert_eq!(backend, PhysicsBackend::WasmSimd);
+    }
+
+    #[test]
+    fn test_detect_best_backend() {
+        let backend = detect_best_backend();
+        assert_eq!(backend, PhysicsBackend::WasmSimd);
+    }
+
+    #[test]
+    fn test_detect_webgpu() {
+        // WebGPU not available in test environment
+        assert!(!detect_webgpu());
+    }
+
+    #[test]
+    fn test_physics_world_debug() {
+        let world = PhysicsWorld::new();
+        let debug_str = format!("{world:?}");
+        assert!(debug_str.contains("PhysicsWorld"));
+        assert!(debug_str.contains("backend"));
+    }
+
+    #[test]
+    fn test_body_handle_equality() {
+        let h1 = BodyHandle(0);
+        let h2 = BodyHandle(0);
+        let h3 = BodyHandle(1);
+
+        assert_eq!(h1, h2);
+        assert_ne!(h1, h3);
+    }
+
+    #[test]
+    fn test_physics_error_display() {
+        let err = PhysicsError::BackendNotAvailable(PhysicsBackend::WebGpu);
+        let msg = format!("{err}");
+        assert!(msg.contains("WebGPU"));
+        assert!(msg.contains("not available"));
+    }
+
+    #[test]
+    fn test_physics_step_returns_duration() {
+        let mut world = PhysicsWorld::new();
+        let _ = world.add_body(RigidBody::default());
+        let duration = world.step(0.016);
+        // Duration should be valid
+        assert!(duration.as_secs_f32() < 1.0);
     }
 }

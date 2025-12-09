@@ -9,7 +9,7 @@
 
 WASM_TARGET := wasm32-unknown-unknown
 
-.PHONY: help tier1 tier2 tier3 build build-wasm test test-fast coverage lint lint-fast fmt clean all dev bench mutate kaizen pmat-tdg pmat-analyze pmat-score pmat-rust-score pmat-mutate pmat-validate-docs pmat-quality-gate pmat-context pmat-all install-tools verify-no-js verify-batuta-deps
+.PHONY: help tier1 tier2 tier3 build build-wasm test test-fast coverage coverage-check lint lint-fast fmt clean all dev bench mutate kaizen pmat-tdg pmat-analyze pmat-score pmat-rust-score pmat-mutate pmat-validate-docs pmat-quality-gate pmat-context pmat-all install-tools verify-no-js verify-batuta-deps
 
 # Default target
 all: tier2
@@ -124,12 +124,34 @@ fmt: ## Format code
 fmt-check: ## Check formatting
 	cargo fmt -- --check
 
-coverage: ## Generate coverage report
-	cargo llvm-cov --all-features --workspace --html
-	@echo "Coverage report: target/llvm-cov/html/index.html"
+coverage: ## Generate coverage report (target: ≥95%)
+	@echo "📊 Generating coverage report (target: ≥95%)..."
+	@# Temporarily disable mold linker (breaks LLVM coverage)
+	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
+	@cargo llvm-cov --workspace --lcov --output-path lcov.info
+	@cargo llvm-cov report --html --output-dir target/coverage/html
+	@# Restore mold linker
+	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
+	@echo "✅ Coverage report: target/coverage/html/index.html"
+	@echo ""
+	@echo "📊 Coverage Summary:"
+	@cargo llvm-cov report | tail -1
+
+coverage-check: ## Enforce 95% coverage threshold (BLOCKS on failure)
+	@echo "🔒 Enforcing 95% coverage threshold..."
+	@# Temporarily disable mold linker (breaks LLVM coverage)
+	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
+	@cargo llvm-cov --workspace --lcov --output-path lcov.info > /dev/null 2>&1
+	@# Restore mold linker
+	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
+	@cargo llvm-cov report | python3 -c "import sys; lines = list(sys.stdin); jugar = [l for l in lines if '.rs' in l and not l.startswith('TOTAL') and not l.startswith('-')]; j_total = sum(int(l.split()[7]) for l in jugar) if jugar else 0; j_uncov = sum(int(l.split()[8]) for l in jugar) if jugar else 0; j_cov = 100*(j_total-j_uncov)/j_total if j_total > 0 else 0; print(f'Jugar library coverage: {j_cov:.2f}%'); exit_code = 1 if j_cov < 95 else 0; print(f'✅ Coverage threshold met (≥95%)' if exit_code == 0 else f'❌ FAIL: Coverage below 95% threshold'); sys.exit(exit_code)"
 
 coverage-lcov: ## Generate lcov coverage report
-	cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+	@# Temporarily disable mold linker (breaks LLVM coverage)
+	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
+	cargo llvm-cov --workspace --lcov --output-path lcov.info
+	@# Restore mold linker
+	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 
 # ============================================================================
 # PMAT TARGETS

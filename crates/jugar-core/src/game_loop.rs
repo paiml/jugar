@@ -333,12 +333,30 @@ mod tests {
     fn test_config_default_60fps() {
         let config = GameLoopConfig::default_60fps();
         assert!((config.fixed_dt - 1.0 / 60.0).abs() < 0.001);
+        assert!((config.max_frame_time - 0.25).abs() < 0.001);
+        assert_eq!(config.target_fps, 0);
     }
 
     #[test]
     fn test_config_mobile() {
         let config = GameLoopConfig::mobile();
         assert!((config.fixed_dt - 1.0 / 30.0).abs() < 0.001);
+        assert!((config.max_frame_time - 0.1).abs() < 0.001);
+        assert_eq!(config.target_fps, 60);
+    }
+
+    #[test]
+    fn test_config_high_refresh() {
+        let config = GameLoopConfig::high_refresh();
+        assert!((config.fixed_dt - 1.0 / 120.0).abs() < 0.001);
+        assert!((config.max_frame_time - 0.25).abs() < 0.001);
+        assert_eq!(config.target_fps, 0);
+    }
+
+    #[test]
+    fn test_config_default() {
+        let config = GameLoopConfig::default();
+        assert!((config.fixed_dt - 1.0 / 60.0).abs() < 0.001);
     }
 
     // ==================== GAME LOOP TESTS ====================
@@ -458,8 +476,102 @@ mod tests {
 
     #[test]
     fn test_game_state_display() {
+        assert_eq!(format!("{}", GameState::Loading), "Loading");
+        assert_eq!(format!("{}", GameState::Menu), "Menu");
         assert_eq!(format!("{}", GameState::Playing), "Playing");
         assert_eq!(format!("{}", GameState::Paused), "Paused");
+        assert_eq!(format!("{}", GameState::GameOver), "GameOver");
+    }
+
+    #[test]
+    fn test_game_state_default() {
+        let state = GameState::default();
+        assert_eq!(state, GameState::Loading);
+    }
+
+    #[test]
+    fn test_game_state_menu_should_not_render_world() {
+        assert!(!GameState::Menu.should_render_world());
+    }
+
+    #[test]
+    fn test_game_state_menu_not_active() {
+        assert!(!GameState::Menu.is_active());
+    }
+
+    #[test]
+    fn test_game_state_paused_transitions() {
+        assert!(GameState::Paused.can_transition_to(&GameState::Menu));
+        assert!(GameState::GameOver.can_transition_to(&GameState::Playing));
+    }
+
+    #[test]
+    fn test_game_state_menu_to_loading() {
+        assert!(GameState::Menu.can_transition_to(&GameState::Loading));
+    }
+
+    // ==================== GAME LOOP STATE TESTS ====================
+
+    #[test]
+    fn test_game_loop_state_new() {
+        let state = GameLoopState::new();
+        assert!((state.total_time() - 0.0).abs() < f32::EPSILON);
+        assert_eq!(state.frame_count(), 0);
+        assert_eq!(state.tick_count(), 0);
+    }
+
+    #[test]
+    fn test_game_loop_state_default() {
+        let state = GameLoopState::default();
+        assert_eq!(state.frame_count(), 0);
+    }
+
+    #[test]
+    fn test_game_loop_state_alpha_zero_dt() {
+        let state = GameLoopState::new();
+        let alpha = state.alpha(0.0);
+        assert!((alpha - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_game_loop_state_alpha_negative_dt() {
+        let state = GameLoopState::new();
+        let alpha = state.alpha(-1.0);
+        assert!((alpha - 0.0).abs() < f32::EPSILON);
+    }
+
+    // ==================== FRAME RESULT TESTS ====================
+
+    #[test]
+    fn test_frame_result_new() {
+        let result = FrameResult::new(5);
+        assert_eq!(result.physics_ticks, 5);
+        assert!(result.should_render);
+    }
+
+    // ==================== GAME LOOP DEBUG TEST ====================
+
+    #[test]
+    fn test_game_loop_debug() {
+        let game_loop = GameLoop::default();
+        let debug_str = format!("{game_loop:?}");
+        assert!(debug_str.contains("GameLoop"));
+        assert!(debug_str.contains("fixed_dt"));
+    }
+
+    #[test]
+    fn test_game_loop_config_accessor() {
+        let game_loop = GameLoop::default();
+        let config = game_loop.config();
+        assert!((config.fixed_dt - 1.0 / 60.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_game_loop_total_time_increases() {
+        let mut game_loop = GameLoop::default();
+        let _ = game_loop.update(0.0);
+        let _ = game_loop.update(1.0);
+        assert!(game_loop.state().total_time() > 0.0);
     }
 
     // ==================== BEHAVIORAL TESTS (MUTATION-RESISTANT) ====================
