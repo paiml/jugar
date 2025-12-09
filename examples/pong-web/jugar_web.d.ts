@@ -9,6 +9,10 @@ export class WebPlatform {
    */
   getConfig(): string;
   /**
+   * Returns AI model metadata and current state as JSON.
+   */
+  getAiInfo(): string;
+  /**
    * Creates a new `WebPlatform` with default configuration.
    */
   static newDefault(): WebPlatform;
@@ -16,6 +20,30 @@ export class WebPlatform {
    * Resets the timer (useful when tab becomes visible again).
    */
   resetTimer(): void;
+  /**
+   * Returns the AI model as JSON string for download.
+   */
+  getAiModel(): string;
+  /**
+   * Gets the current game mode as string.
+   */
+  getGameMode(): string;
+  /**
+   * Sets the game mode ("demo", "1p", "2p").
+   */
+  setGameMode(mode: string): void;
+  /**
+   * Gets the current AI difficulty level.
+   */
+  getAiDifficulty(): number;
+  /**
+   * Sets the AI difficulty level (0-9).
+   */
+  setAiDifficulty(level: number): void;
+  /**
+   * Sets the canvas offset from viewport origin.
+   */
+  setCanvasOffset(x: number, y: number): void;
   /**
    * Creates a new `WebPlatform` with configuration from JSON.
    *
@@ -53,9 +81,17 @@ export class WebPlatform {
    */
   resize(width: number, height: number): void;
   /**
+   * Gets the current speed multiplier value.
+   */
+  getSpeed(): number;
+  /**
    * Returns current debug statistics as JSON.
    */
   getStats(): string;
+  /**
+   * Sets the speed multiplier (1, 5, 10, 50, 100, 1000).
+   */
+  setSpeed(speed: number): void;
 }
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -64,12 +100,21 @@ export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly __wbg_webplatform_free: (a: number, b: number) => void;
   readonly webplatform_frame: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly webplatform_getAiDifficulty: (a: number) => number;
+  readonly webplatform_getAiInfo: (a: number) => [number, number];
+  readonly webplatform_getAiModel: (a: number) => [number, number];
   readonly webplatform_getConfig: (a: number) => [number, number];
+  readonly webplatform_getGameMode: (a: number) => [number, number];
+  readonly webplatform_getSpeed: (a: number) => number;
   readonly webplatform_getStats: (a: number) => [number, number];
   readonly webplatform_new: (a: number, b: number) => [number, number, number];
   readonly webplatform_newDefault: () => number;
   readonly webplatform_resetTimer: (a: number) => void;
   readonly webplatform_resize: (a: number, b: number, c: number) => void;
+  readonly webplatform_setAiDifficulty: (a: number, b: number) => void;
+  readonly webplatform_setCanvasOffset: (a: number, b: number, c: number) => void;
+  readonly webplatform_setGameMode: (a: number, b: number, c: number) => void;
+  readonly webplatform_setSpeed: (a: number, b: number) => void;
   readonly __wbindgen_externrefs: WebAssembly.Table;
   readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_malloc: (a: number, b: number) => number;

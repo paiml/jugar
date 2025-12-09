@@ -649,9 +649,96 @@ tier3:  ## Comprehensive validation
 	fi
 ```
 
+## 15. Load Testing and Performance Validation
+
+Jugar includes a comprehensive load testing framework for surfacing bugs and validating game performance under extreme conditions, inspired by Netflix's Chaos Engineering principles.
+
+### 15.1 Chaos Engineering Scenarios
+
+| Scenario | Description | Detection Target |
+|----------|-------------|------------------|
+| **Entity Storm** | Spawn maximum entities simultaneously | Memory limits, physics stability |
+| **Input Flood** | 1000+ inputs/second | Input buffer overflow, dropped inputs |
+| **Time Warp** | Extreme dt values (0.0001s to 1.0s) | Physics explosion, NaN propagation |
+| **Resize Blitz** | Rapid canvas resize events | Layout thrashing, coordinate drift |
+| **Configuration Sweep** | Test all config permutations | Edge case configurations |
+| **RNG Torture** | Adversarial random seeds | Determinism validation |
+
+### 15.2 Property-Based Testing (proptest)
+
+Game invariants are validated across thousands of random scenarios:
+
+```rust
+proptest! {
+    #[test]
+    fn state_always_valid(inputs in input_strategy()) {
+        let mut platform = WebPlatform::new_for_test(WebConfig::default());
+        for input in inputs {
+            let output = platform.frame(ts, &input);
+            prop_assert!(output.starts_with('{'));
+            prop_assert!(matches!(platform.pong().state(),
+                GameState::Playing | GameState::Paused));
+        }
+    }
+}
+```
+
+### 15.3 Frame Time Analysis
+
+Performance is validated using percentile analysis (Dean & Barroso, "Tail at Scale"):
+
+| Percentile | 60 FPS Target | 120 FPS Target |
+|------------|---------------|----------------|
+| p50 | < 10ms | < 5ms |
+| p90 | < 14ms | < 7ms |
+| p95 | < 15ms | < 7.5ms |
+| **p99** | **< 16.67ms** | **< 8.33ms** |
+
+### 15.4 Drift Detection
+
+Z-score based anomaly detection identifies performance regressions:
+
+```rust
+let mut detector = DriftDetector::new(window_size: 60, z_threshold: 2.0);
+detector.calibrate(&baseline_samples);
+
+for frame_time in frame_times {
+    if detector.observe(frame_time).is_anomaly() {
+        log::warn!("Performance anomaly detected");
+    }
+    if let Some(drift) = detector.detect_drift() {
+        log::error!("Sustained drift: {:.1}%", drift.drift_percent);
+    }
+}
+```
+
+### 15.5 Running Load Tests
+
+```bash
+# Run the load test example
+cargo run -p jugar-web --example load_test
+
+# Run chaos tests
+cargo test -p jugar-web --test chaos
+
+# Run property-based tests
+cargo test -p jugar-web --test proptest_game
+```
+
+### 15.6 Load Test Success Criteria
+
+| Metric | Target | Validation |
+|--------|--------|------------|
+| Property test cases | 1000+ | All pass |
+| Chaos scenarios | All 6 types | No panics, no NaN |
+| Frame time p99 | < 8ms | Criterion benchmark |
+| Memory stability | No growth | 60s sustained load |
+| Determinism | 100% | Hash match across runs |
+| Input throughput | 1000/frame | No drops |
+
 ---
 
-**Document Version**: 0.3.0
+**Document Version**: 0.3.1
 **Last Updated**: 2025-12-09
 **Authors**: PAIML Team
 **WOS Quality Lessons Applied**: PERFECTION-ACHIEVED-2025-10-25

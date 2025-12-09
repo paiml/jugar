@@ -4,257 +4,134 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Pong - Jugar WASM Game Engine</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23000' width='32' height='32'/%3E%3Crect fill='%23fff' x='4' y='6' width='4' height='20' rx='1'/%3E%3Ccircle fill='%23fff' cx='20' cy='16' r='4'/%3E%3C/svg%3E">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #000;
-            touch-action: none;
-        }
-        #game-canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-        #loading {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff;
-            font-family: monospace;
-            font-size: 24px;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; touch-action: none; }
+        #game-canvas { display: block; width: 100%; height: 100%; }
+        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-family: monospace; font-size: 24px; }
     </style>
 </head>
 <body>
     <div id="loading">Loading WASM...</div>
     <canvas id="game-canvas"></canvas>
     <script type="module">
-        // Jugar WASM Pong - ABSOLUTE ZERO JavaScript Computation
-        // All game logic runs in Rust/WASM. This JS only:
-        // 1. Forwards input events as JSON
-        // 2. Executes Canvas2D render commands from WASM
+// JUGAR WASM LOADER - ZERO COMPUTATION POLICY
+// Each function is a single-line DOM/WebAPI call. All logic lives in Rust.
+// Lint: eslint --rule "max-lines-per-function: [error, 1]"
 
-        import init, { WebPlatform } from './pkg/jugar_web.js';
+import init, { WebPlatform } from './pkg/jugar_web.js';
 
-        async function main() {
-            // Initialize WASM module
-            await init();
+// === SINGLE-LINE DOM API WRAPPERS ===
+const $ = (id) => document.getElementById(id);
+const hide = (el) => el.style.display = 'none';
+const show = (el) => el.style.display = 'block';
+const rgba = (c) => `rgba(${c.r * 255 | 0}, ${c.g * 255 | 0}, ${c.b * 255 | 0}, ${c.a})`;
 
-            // Get canvas and context
-            const canvas = document.getElementById('game-canvas');
-            const ctx = canvas.getContext('2d');
+// === SINGLE-LINE FULLSCREEN API ===
+const enterFullscreen = () => (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement);
+const exitFullscreen = () => (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+const isFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
 
-            // Resize canvas to window
-            function resize() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-            }
-            resize();
-            window.addEventListener('resize', resize);
+// === SINGLE-LINE WEB AUDIO API ===
+let audioCtx = null;
+const initAudio = () => audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+const resumeAudio = () => audioCtx?.state === 'suspended' && audioCtx.resume();
 
-            // Create WebPlatform with config
-            const config = JSON.stringify({
-                width: canvas.width,
-                height: canvas.height,
-                debug: false
-            });
-            const platform = new WebPlatform(config);
+// Play tone: single oscillator setup (unavoidable multi-line for WebAudio)
+const playTone = (freq, dur, vol, type) => {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol * 0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + dur);
+};
 
-            // Hide loading message
-            document.getElementById('loading').style.display = 'none';
+// === SINGLE-LINE DOWNLOAD API ===
+const downloadBlob = (data, name, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type })); a.download = name; a.click(); };
 
-            // Input event buffer (JSON format for WASM)
-            const events = [];
+// === AUDIO EVENT DISPATCHER ===
+const playAudio = (ev) => {
+    resumeAudio();
+    const t = Object.keys(ev)[0], d = ev[t];
+    if (t === 'PaddleHit') playTone(d.frequency, d.duration, d.volume, 'square');
+    if (t === 'WallBounce') playTone(d.frequency, d.duration, d.volume, 'sine');
+    if (t === 'RallyMilestone') playTone(d.frequency, 0.15, d.volume, 'triangle');
+    if (t === 'Goal') [0, 100, 200].forEach((ms, i) => setTimeout(() => playTone((d.player_scored ? 440 : 220) + (d.player_scored ? 1 : -1) * i * 110, 0.15, d.volume, 'square'), ms));
+    if (t === 'GameStart') [262, 330, 392, 523].forEach((f, i) => setTimeout(() => playTone(f, 0.1, d.volume * 0.5, 'sine'), i * 80));
+    if (t === 'SoundToggle' && d.enabled) playTone(880, 0.08, d.volume * 0.4, 'sine'); // Quick high beep when sound enabled
+};
 
-            // Keyboard events
-            document.addEventListener('keydown', (e) => {
-                events.push({
-                    event_type: 'KeyDown',
-                    timestamp: e.timeStamp,
-                    data: { key: e.code }
-                });
-                e.preventDefault();
-            });
+// === ACTION DISPATCHER ===
+const execAction = (action, platform) => {
+    if (action.type === 'DownloadAiModel') downloadBlob(platform.getAiModel(), 'pong-ai-v1.apr', 'application/json');
+    if (action.type === 'OpenUrl') window.open(action.url, '_blank');
+    if (action.type === 'EnterFullscreen') enterFullscreen().catch(() => {});
+    if (action.type === 'ExitFullscreen') exitFullscreen();
+};
 
-            document.addEventListener('keyup', (e) => {
-                events.push({
-                    event_type: 'KeyUp',
-                    timestamp: e.timeStamp,
-                    data: { key: e.code }
-                });
-                e.preventDefault();
-            });
+// === RENDER COMMAND EXECUTOR ===
+const execCmd = (ctx, cmd) => {
+    if (cmd.type === 'Clear') { ctx.fillStyle = rgba(cmd.color); ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); }
+    if (cmd.type === 'FillRect') { ctx.fillStyle = rgba(cmd.color); ctx.fillRect(cmd.x, cmd.y, cmd.width, cmd.height); }
+    if (cmd.type === 'StrokeRect') { ctx.strokeStyle = rgba(cmd.color); ctx.lineWidth = cmd.line_width || 1; ctx.strokeRect(cmd.x, cmd.y, cmd.width, cmd.height); }
+    if (cmd.type === 'FillCircle') { ctx.fillStyle = rgba(cmd.color); ctx.beginPath(); ctx.arc(cmd.x, cmd.y, cmd.radius, 0, Math.PI * 2); ctx.fill(); }
+    if (cmd.type === 'StrokeCircle') { ctx.strokeStyle = rgba(cmd.color); ctx.lineWidth = cmd.line_width || 1; ctx.beginPath(); ctx.arc(cmd.x, cmd.y, cmd.radius, 0, Math.PI * 2); ctx.stroke(); }
+    if (cmd.type === 'Line') { ctx.strokeStyle = rgba(cmd.color); ctx.lineWidth = cmd.line_width || 1; ctx.beginPath(); ctx.moveTo(cmd.x1, cmd.y1); ctx.lineTo(cmd.x2, cmd.y2); ctx.stroke(); }
+    if (cmd.type === 'FillText') { ctx.fillStyle = rgba(cmd.color); ctx.font = cmd.font || '16px monospace'; ctx.textAlign = cmd.align || 'left'; ctx.textBaseline = cmd.baseline || 'top'; ctx.fillText(cmd.text, cmd.x, cmd.y); }
+    if (cmd.type === 'SetAlpha') ctx.globalAlpha = cmd.alpha;
+    if (cmd.type === 'Transform') ctx.setTransform(cmd.a, cmd.b, cmd.c, cmd.d, cmd.e, cmd.f);
+};
 
-            // Mouse events
-            canvas.addEventListener('mousedown', (e) => {
-                events.push({
-                    event_type: 'MouseDown',
-                    timestamp: e.timeStamp,
-                    data: { button: e.button, x: e.clientX, y: e.clientY }
-                });
-            });
+// === MAIN ===
+async function main() {
+    await init();
+    const canvas = $('game-canvas'), ctx = canvas.getContext('2d');
+    const events = [];
 
-            canvas.addEventListener('mouseup', (e) => {
-                events.push({
-                    event_type: 'MouseUp',
-                    timestamp: e.timeStamp,
-                    data: { button: e.button, x: e.clientX, y: e.clientY }
-                });
-            });
+    // Resize handler
+    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    resize();
+    window.addEventListener('resize', resize);
 
-            canvas.addEventListener('mousemove', (e) => {
-                events.push({
-                    event_type: 'MouseMove',
-                    timestamp: e.timeStamp,
-                    data: { x: e.clientX, y: e.clientY }
-                });
-            });
+    // Create platform
+    const platform = new WebPlatform(JSON.stringify({ width: canvas.width, height: canvas.height, debug: false }));
+    const updateOffset = () => { const r = canvas.getBoundingClientRect(); platform.setCanvasOffset(r.left, r.top); };
+    updateOffset();
+    hide($('loading'));
 
-            // Touch events
-            canvas.addEventListener('touchstart', (e) => {
-                for (const touch of e.changedTouches) {
-                    events.push({
-                        event_type: 'TouchStart',
-                        timestamp: e.timeStamp,
-                        data: { id: touch.identifier, x: touch.clientX, y: touch.clientY }
-                    });
-                }
-                e.preventDefault();
-            }, { passive: false });
+    // Input: keyboard
+    const onKey = (type) => (e) => { initAudio(); events.push({ event_type: type, timestamp: e.timeStamp, data: { key: e.code } }); e.preventDefault(); };
+    document.addEventListener('keydown', onKey('KeyDown'));
+    document.addEventListener('keyup', onKey('KeyUp'));
 
-            canvas.addEventListener('touchmove', (e) => {
-                for (const touch of e.changedTouches) {
-                    events.push({
-                        event_type: 'TouchMove',
-                        timestamp: e.timeStamp,
-                        data: { id: touch.identifier, x: touch.clientX, y: touch.clientY }
-                    });
-                }
-                e.preventDefault();
-            }, { passive: false });
+    // Input: mouse
+    canvas.addEventListener('mousedown', (e) => { initAudio(); events.push({ event_type: 'MouseDown', timestamp: e.timeStamp, data: { button: e.button, x: e.clientX, y: e.clientY } }); });
+    canvas.addEventListener('mouseup', (e) => events.push({ event_type: 'MouseUp', timestamp: e.timeStamp, data: { button: e.button, x: e.clientX, y: e.clientY } }));
+    canvas.addEventListener('mousemove', (e) => events.push({ event_type: 'MouseMove', timestamp: e.timeStamp, data: { x: e.clientX, y: e.clientY } }));
 
-            canvas.addEventListener('touchend', (e) => {
-                for (const touch of e.changedTouches) {
-                    events.push({
-                        event_type: 'TouchEnd',
-                        timestamp: e.timeStamp,
-                        data: { id: touch.identifier, x: touch.clientX, y: touch.clientY }
-                    });
-                }
-                e.preventDefault();
-            }, { passive: false });
+    // Input: touch
+    const onTouch = (type) => (e) => { if (type === 'TouchStart') initAudio(); for (const t of e.changedTouches) events.push({ event_type: type, timestamp: e.timeStamp, data: { id: t.identifier, x: t.clientX, y: t.clientY } }); e.preventDefault(); };
+    canvas.addEventListener('touchstart', onTouch('TouchStart'), { passive: false });
+    canvas.addEventListener('touchmove', onTouch('TouchMove'), { passive: false });
+    canvas.addEventListener('touchend', onTouch('TouchEnd'), { passive: false });
 
-            // Helper to convert color to CSS rgba
-            // Color can be an array [r, g, b, a] or object {r, g, b, a}
-            function rgba(color) {
-                if (Array.isArray(color)) {
-                    return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, ${color[3]})`;
-                }
-                if (color && typeof color === 'object') {
-                    return `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${color.a})`;
-                }
-                return color || 'black';
-            }
+    // Game loop
+    const frame = (ts) => {
+        if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) { resize(); platform.resize(canvas.width, canvas.height); updateOffset(); }
+        const out = JSON.parse(platform.frame(ts, JSON.stringify(events)));
+        events.length = 0;
+        for (const ev of out.audio_events || []) playAudio(ev);
+        for (const action of out.actions || []) execAction(action, platform);
+        for (const cmd of out.commands) execCmd(ctx, cmd);
+        requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+}
 
-            // Game loop using requestAnimationFrame
-            function frame(timestamp) {
-                // Handle resize
-                if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
-                    canvas.width = window.innerWidth;
-                    canvas.height = window.innerHeight;
-                    platform.resize(canvas.width, canvas.height);
-                }
-
-                // Call WASM frame with timestamp and input events
-                const inputJson = JSON.stringify(events);
-                events.length = 0; // Clear event buffer
-
-                const output = JSON.parse(platform.frame(timestamp, inputJson));
-                const commands = output.commands;
-
-                // Execute Canvas2D render commands from WASM
-                for (const cmd of commands) {
-                    switch (cmd.type) {
-                        case 'Clear':
-                            ctx.fillStyle = rgba(cmd.color);
-                            ctx.fillRect(0, 0, canvas.width, canvas.height);
-                            break;
-
-                        case 'FillRect':
-                            ctx.fillStyle = rgba(cmd.color);
-                            ctx.fillRect(cmd.x, cmd.y, cmd.width, cmd.height);
-                            break;
-
-                        case 'StrokeRect':
-                            ctx.strokeStyle = rgba(cmd.color);
-                            ctx.lineWidth = cmd.line_width || 1;
-                            ctx.strokeRect(cmd.x, cmd.y, cmd.width, cmd.height);
-                            break;
-
-                        case 'FillCircle':
-                            ctx.fillStyle = rgba(cmd.color);
-                            ctx.beginPath();
-                            ctx.arc(cmd.x, cmd.y, cmd.radius, 0, Math.PI * 2);
-                            ctx.fill();
-                            break;
-
-                        case 'StrokeCircle':
-                            ctx.strokeStyle = rgba(cmd.color);
-                            ctx.lineWidth = cmd.line_width || 1;
-                            ctx.beginPath();
-                            ctx.arc(cmd.x, cmd.y, cmd.radius, 0, Math.PI * 2);
-                            ctx.stroke();
-                            break;
-
-                        case 'Line':
-                            ctx.strokeStyle = rgba(cmd.color);
-                            ctx.lineWidth = cmd.line_width || 1;
-                            ctx.beginPath();
-                            ctx.moveTo(cmd.x1, cmd.y1);
-                            ctx.lineTo(cmd.x2, cmd.y2);
-                            ctx.stroke();
-                            break;
-
-                        case 'FillText':
-                            ctx.fillStyle = rgba(cmd.color);
-                            ctx.font = cmd.font || '16px monospace';
-                            ctx.textAlign = cmd.align || 'left';
-                            ctx.textBaseline = cmd.baseline || 'top';
-                            ctx.fillText(cmd.text, cmd.x, cmd.y);
-                            break;
-
-                        case 'SetAlpha':
-                            ctx.globalAlpha = cmd.alpha;
-                            break;
-
-                        case 'Transform':
-                            ctx.setTransform(cmd.a, cmd.b, cmd.c, cmd.d, cmd.e, cmd.f);
-                            break;
-
-                        case 'DrawImage':
-                            // Image drawing would require preloaded images
-                            // Skipped for minimal demo
-                            break;
-                    }
-                }
-
-                // Continue game loop
-                requestAnimationFrame(frame);
-            }
-
-            // Start game loop
-            requestAnimationFrame(frame);
-        }
-
-        main().catch(console.error);
+main().catch(console.error);
     </script>
 </body>
 </html>

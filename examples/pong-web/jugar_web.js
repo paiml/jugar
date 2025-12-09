@@ -130,6 +130,22 @@ export class WebPlatform {
         }
     }
     /**
+     * Returns AI model metadata and current state as JSON.
+     * @returns {string}
+     */
+    getAiInfo() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.webplatform_getAiInfo(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * Creates a new `WebPlatform` with default configuration.
      * @returns {WebPlatform}
      */
@@ -142,6 +158,70 @@ export class WebPlatform {
      */
     resetTimer() {
         wasm.webplatform_resetTimer(this.__wbg_ptr);
+    }
+    /**
+     * Returns the AI model as JSON string for download.
+     * @returns {string}
+     */
+    getAiModel() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.webplatform_getAiModel(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Gets the current game mode as string.
+     * @returns {string}
+     */
+    getGameMode() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.webplatform_getGameMode(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Sets the game mode ("demo", "1p", "2p").
+     * @param {string} mode
+     */
+    setGameMode(mode) {
+        const ptr0 = passStringToWasm0(mode, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.webplatform_setGameMode(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * Gets the current AI difficulty level.
+     * @returns {number}
+     */
+    getAiDifficulty() {
+        const ret = wasm.webplatform_getAiDifficulty(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Sets the AI difficulty level (0-9).
+     * @param {number} level
+     */
+    setAiDifficulty(level) {
+        wasm.webplatform_setAiDifficulty(this.__wbg_ptr, level);
+    }
+    /**
+     * Sets the canvas offset from viewport origin.
+     * @param {number} x
+     * @param {number} y
+     */
+    setCanvasOffset(x, y) {
+        wasm.webplatform_setCanvasOffset(this.__wbg_ptr, x, y);
     }
     /**
      * Creates a new `WebPlatform` with configuration from JSON.
@@ -211,6 +291,14 @@ export class WebPlatform {
         wasm.webplatform_resize(this.__wbg_ptr, width, height);
     }
     /**
+     * Gets the current speed multiplier value.
+     * @returns {number}
+     */
+    getSpeed() {
+        const ret = wasm.webplatform_getSpeed(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
      * Returns current debug statistics as JSON.
      * @returns {string}
      */
@@ -225,6 +313,13 @@ export class WebPlatform {
         } finally {
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
+    }
+    /**
+     * Sets the speed multiplier (1, 5, 10, 50, 100, 1000).
+     * @param {number} speed
+     */
+    setSpeed(speed) {
+        wasm.webplatform_setSpeed(this.__wbg_ptr, speed);
     }
 }
 if (Symbol.dispose) WebPlatform.prototype[Symbol.dispose] = WebPlatform.prototype.free;

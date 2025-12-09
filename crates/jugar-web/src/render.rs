@@ -402,6 +402,26 @@ impl RenderFrame {
         });
     }
 
+    /// Strokes a rectangle outline.
+    pub fn stroke_rect(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        color: Color,
+        line_width: f32,
+    ) {
+        self.push(Canvas2DCommand::StrokeRect {
+            x,
+            y,
+            width,
+            height,
+            color,
+            line_width,
+        });
+    }
+
     /// Returns the number of commands.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)] // Vec::len() is not const

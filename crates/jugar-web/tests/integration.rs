@@ -2,7 +2,7 @@
 //!
 //! These tests verify the complete game lifecycle from input to render output.
 
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::field_reassign_with_default)]
 
 use jugar_web::{GameState, WebConfig, WebPlatform};
 
@@ -77,14 +77,7 @@ fn test_game_state_transitions() {
     let config = WebConfig::default();
     let mut platform = WebPlatform::new_for_test(config);
 
-    // Initially in Menu
-    assert_eq!(platform.pong().state(), GameState::Menu);
-
-    // Press Space to start
-    let _ = platform.frame(
-        100.0,
-        r#"[{"event_type":"KeyDown","timestamp":100.0,"data":{"key":"Space"}}]"#,
-    );
+    // Initially in Playing (Demo mode attract)
     assert_eq!(platform.pong().state(), GameState::Playing);
 
     // Release Space first (to clear the "was pressed" state)
@@ -135,13 +128,57 @@ fn test_idle_frames() {
     let config = WebConfig::default();
     let mut platform = WebPlatform::new_for_test(config);
 
-    // Run 60 frames without any input (menu state)
+    // Run 60 frames without any input (Demo mode, playing)
     for i in 0..60 {
         let ts = f64::from(i) * 16.667;
         let output = platform.frame(ts, "[]");
         assert!(!output.is_empty(), "Frame {i} should produce output");
     }
 
-    // Should still be in menu
-    assert_eq!(platform.pong().state(), GameState::Menu);
+    // Should still be playing (Demo mode)
+    assert_eq!(platform.pong().state(), GameState::Playing);
+}
+
+/// Test that game tracer records frames.
+#[test]
+fn test_tracer_records_frames() {
+    let config = WebConfig::default();
+    let mut platform = WebPlatform::new_for_test(config);
+
+    // Run 10 frames
+    for i in 0..10 {
+        let ts = f64::from(i) * 16.667;
+        let _ = platform.frame(ts, "[]");
+    }
+
+    // Tracer should have recorded 10 frames
+    let stats = platform.tracer().stats();
+    assert_eq!(stats.frame, 10, "Tracer should have recorded 10 frames");
+    assert!(
+        stats.buffer_len <= 10,
+        "Buffer should contain up to 10 frames"
+    );
+}
+
+/// Test that tracer statistics appear in debug output.
+#[test]
+fn test_tracer_debug_info() {
+    let mut config = WebConfig::default();
+    config.debug = true;
+    let mut platform = WebPlatform::new_for_test(config);
+
+    // Run a few frames
+    for i in 0..5 {
+        let ts = f64::from(i) * 16.667;
+        let _ = platform.frame(ts, "[]");
+    }
+
+    // Get the output with debug info
+    let output = platform.frame(100.0, "[]");
+
+    // Debug output should contain trace buffer usage
+    assert!(
+        output.contains("trace_buffer_usage"),
+        "Debug output should contain trace_buffer_usage: {output}"
+    );
 }

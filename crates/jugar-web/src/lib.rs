@@ -57,26 +57,46 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![allow(clippy::doc_markdown)]
+// These clippy lints are too strict for practical use in this crate
+#![allow(clippy::std_instead_of_alloc)] // VecDeque from std is fine
+#![allow(clippy::std_instead_of_core)] // std::cmp::Ordering is fine
+#![allow(clippy::missing_const_for_fn)] // Many functions can't be const yet
 
 pub mod ai;
 pub mod audio;
 pub mod compute;
+pub mod demo;
 pub mod input;
 pub mod juice;
+pub mod loadtest;
 pub mod platform;
 pub mod render;
 pub mod simd;
+pub mod simulation;
 pub mod time;
+pub mod trace;
+
+#[cfg(test)]
+mod simulation_tests;
 
 // Re-export main types for convenience
+pub use ai::{
+    DeterminismConfig, DifficultyProfile, FlowChannel, FlowTheoryConfig, ModelMetadata,
+    PlayerMetrics, PongAI, PongAIModel,
+};
 pub use audio::{AudioEvent, ProceduralAudio};
 pub use compute::{
     detect_compute_capability, ComputeBenchmarkResult, ComputeCapability, ComputeDemo,
     ComputeDemoState, ComputeTier, GpuShaderInfo, ShaderType, PARTICLE_PHYSICS_WGSL,
 };
+pub use demo::{Attribution, DemoState, GameMode, PerformanceStats, SpeedMultiplier};
 pub use input::{
     process_input_events, translate_gamepad_axis, translate_gamepad_button, translate_key,
     translate_mouse_button, BrowserEventData, BrowserInputEvent, InputTranslationError,
+};
+pub use loadtest::{
+    AnomalyResult, ChaosConfig, ChaosResults, ChaosScenario, DriftDetector, DriftReport,
+    FrameTimeReport, FrameTimeStats, LoadTestConfig, LoadTestResult, LoadTestSummary,
 };
 pub use platform::{
     DebugInfo, FrameOutput, GameState, PongGame, WebConfig, WebGame, WebPlatform, WebPlatformError,
@@ -90,9 +110,18 @@ pub use simd::{
     detect_compute_backend, trueno_backend_to_compute_backend, ComputeBackend, SimdBenchmark,
     SimdVec2,
 };
+pub use simulation::{
+    check_invariants, FailureReplay, FuzzGenerator, GameStateSnapshot, InvariantViolation,
+    MonteCarloConfig, TestResult, TestTier, TimestampedInput,
+};
 pub use time::{
     calculate_delta_time, clamp_delta_time, dom_timestamp_to_seconds, seconds_to_dom_timestamp,
     FrameTimer, DEFAULT_MAX_DELTA_TIME, TARGET_DT_120FPS, TARGET_DT_30FPS, TARGET_DT_60FPS,
+};
+pub use trace::{
+    AdaptiveSnapshotter, BufferPolicy, Fixed32, FrameRecord, GameTracer, InputEvent,
+    InputEventType, QueryResult, SnapshotDecision, TraceBuffer, TraceError, TraceQuery, TraceStats,
+    TracerConfig,
 };
 
 #[cfg(test)]

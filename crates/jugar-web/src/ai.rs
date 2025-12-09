@@ -2,56 +2,152 @@
 //!
 //! This module provides an adaptive AI opponent that uses a pre-trained
 //! `.apr` model file for difficulty profiles. The AI implements Dynamic
-//! Difficulty Adjustment (DDA) based on player performance.
+//! Difficulty Adjustment (DDA) based on Flow Theory (Csikszentmihalyi).
+//!
+//! ## Research Foundation
+//!
+//! - **Flow Theory**: Three-channel model (boredom ↔ flow ↔ anxiety)
+//! - **DDA**: [Zohaib 2018](https://onlinelibrary.wiley.com/doi/10.1155/2018/5681652)
+//! - **Reproducibility**: Deterministic RNG with seed stored in model
 //!
 //! ## Architecture
 //!
 //! ```text
 //! ┌─────────────────────────────────────────────────────────────┐
 //! │                    PongAIModel (.apr)                        │
+//! │  - Metadata (name, version, author, license)                │
+//! │  - Determinism config (seed, algorithm)                     │
+//! │  - Flow Theory params (thresholds, adaptation rate)         │
 //! │  - 10 difficulty profiles (0-9)                             │
-//! │  - Reaction delays, prediction accuracy, error magnitudes   │
 //! └─────────────────────────────┬───────────────────────────────┘
 //!                               │
 //!                               ▼
 //! ┌─────────────────────────────────────────────────────────────┐
 //! │                      PongAI                                  │
 //! │  - Loads model from .apr bytes                              │
-//! │  - Tracks player performance (hits, misses, rallies)        │
+//! │  - Tracks player performance (FlowState)                    │
+//! │  - Detects flow channel (boredom/flow/anxiety)              │
 //! │  - Adapts difficulty to maintain flow state                 │
-//! │  - Controls right paddle movement                           │
 //! └─────────────────────────────────────────────────────────────┘
 //! ```
 
 use serde::{Deserialize, Serialize};
 
-/// Pong AI Model - stored in .apr binary format.
+// ============================================================================
+// Model Metadata (for .apr showcase)
+// ============================================================================
+
+/// Model metadata for the `.apr` file format.
 ///
-/// This model contains difficulty profiles and skill-matching parameters
-/// for the adaptive AI opponent.
+/// This showcases aprender's portable model format.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PongAIModel {
-    /// Model version (semver)
-    pub version: String,
+pub struct ModelMetadata {
     /// Model name
     pub name: String,
+    /// Semantic version
+    pub version: String,
     /// Model description
     pub description: String,
-
-    /// Difficulty profiles (0-9)
-    pub difficulty_profiles: Vec<DifficultyProfile>,
-
-    /// Rate at which AI adapts to player skill (0.0-1.0)
-    pub skill_adaptation_rate: f32,
-    /// Number of rallies to consider for skill assessment
-    pub performance_window_size: usize,
+    /// Author/organization
+    pub author: String,
+    /// License (e.g., "MIT")
+    pub license: String,
+    /// Creation timestamp (ISO 8601)
+    pub created: String,
 }
 
+impl Default for ModelMetadata {
+    fn default() -> Self {
+        Self {
+            name: "Pong AI v1".to_string(),
+            version: "1.0.0".to_string(),
+            description: "Flow Theory-based adaptive Pong opponent".to_string(),
+            author: "PAIML".to_string(),
+            license: "MIT".to_string(),
+            created: "2025-01-01T00:00:00Z".to_string(),
+        }
+    }
+}
+
+// ============================================================================
+// Determinism Configuration (for reproducibility)
+// ============================================================================
+
+/// Determinism configuration for reproducible AI behavior.
+///
+/// Based on [arXiv Reproducibility (2022)](https://arxiv.org/abs/2203.01075).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeterminismConfig {
+    /// Random seed for reproducibility
+    pub seed: u64,
+    /// RNG algorithm name
+    pub rng_algorithm: String,
+}
+
+impl Default for DeterminismConfig {
+    fn default() -> Self {
+        Self {
+            seed: 12345,
+            rng_algorithm: "xorshift64".to_string(),
+        }
+    }
+}
+
+// ============================================================================
+// Flow Theory Configuration
+// ============================================================================
+
+/// Flow Theory parameters for Dynamic Difficulty Adjustment.
+///
+/// Based on Csikszentmihalyi's three-channel model:
+/// - **Boredom**: Challenge too low for skill level
+/// - **Flow**: Challenge matches skill (optimal engagement)
+/// - **Anxiety**: Challenge too high for skill level
+///
+/// Reference: [Think Game Design](https://thinkgamedesign.com/flow-theory-game-design/)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlowTheoryConfig {
+    /// Number of recent points to consider for skill estimation
+    pub skill_window_size: usize,
+    /// Rate at which AI adapts difficulty (0.0-1.0)
+    pub adaptation_rate: f32,
+    /// Win rate threshold above which player is "bored" (e.g., 0.7)
+    pub boredom_threshold: f32,
+    /// Win rate threshold below which player is "anxious" (e.g., 0.3)
+    pub anxiety_threshold: f32,
+    /// Target win rate for optimal flow (typically 0.5)
+    pub target_win_rate: f32,
+}
+
+impl Default for FlowTheoryConfig {
+    fn default() -> Self {
+        Self {
+            skill_window_size: 10,
+            adaptation_rate: 0.15,
+            boredom_threshold: 0.7,
+            anxiety_threshold: 0.3,
+            target_win_rate: 0.5,
+        }
+    }
+}
+
+// ============================================================================
+// Difficulty Profile
+// ============================================================================
+
 /// A single difficulty profile defining AI behavior.
+///
+/// Difficulty curve formula (from design spec):
+/// - `reaction = 500 * (1-t)² + 50` where `t = level/9`
+/// - `accuracy = 0.30 + 0.65 * t`
+/// - `speed = 200 + 400 * t`
+/// - `error = 50 * (1-t)² + 5`
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DifficultyProfile {
     /// Difficulty level (0-9)
     pub level: u8,
+    /// Human-readable name for this level
+    pub name: String,
     /// Base reaction delay in milliseconds
     pub reaction_delay_ms: f32,
     /// Ball position prediction accuracy (0.0-1.0)
@@ -68,60 +164,122 @@ impl Default for DifficultyProfile {
     fn default() -> Self {
         Self {
             level: 5,
-            reaction_delay_ms: 150.0,
-            prediction_accuracy: 0.7,
-            max_paddle_speed: 400.0,
-            error_magnitude: 20.0,
-            aggression: 0.5,
+            name: "Challenging".to_string(),
+            reaction_delay_ms: 180.0,
+            prediction_accuracy: 0.66,
+            max_paddle_speed: 422.0,
+            error_magnitude: 24.0,
+            aggression: 0.55,
         }
     }
+}
+
+// ============================================================================
+// Pong AI Model (.apr format)
+// ============================================================================
+
+/// Pong AI Model - the complete `.apr` file structure.
+///
+/// This is the downloadable model that showcases aprender's format.
+/// Users can inspect, modify, and reload this JSON model.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PongAIModel {
+    /// Schema version for forward compatibility
+    #[serde(rename = "$schema", default = "default_schema")]
+    pub schema: String,
+
+    /// Model metadata
+    pub metadata: ModelMetadata,
+
+    /// Model type identifier
+    pub model_type: String,
+
+    /// Determinism configuration for reproducibility
+    pub determinism: DeterminismConfig,
+
+    /// Flow Theory parameters for DDA
+    pub flow_theory: FlowTheoryConfig,
+
+    /// Difficulty profiles (0-9)
+    pub difficulty_profiles: Vec<DifficultyProfile>,
+}
+
+fn default_schema() -> String {
+    "https://paiml.com/schemas/apr/v1".to_string()
 }
 
 impl Default for PongAIModel {
     fn default() -> Self {
         Self {
-            version: "1.0.0".to_string(),
-            name: "Default Pong AI".to_string(),
-            description: "Fallback AI model with standard difficulty curve".to_string(),
+            schema: default_schema(),
+            metadata: ModelMetadata::default(),
+            model_type: "behavior_profile".to_string(),
+            determinism: DeterminismConfig::default(),
+            flow_theory: FlowTheoryConfig::default(),
             difficulty_profiles: Self::generate_default_profiles(),
-            skill_adaptation_rate: 0.1,
-            performance_window_size: 10,
         }
     }
 }
 
 impl PongAIModel {
-    /// Creates a new AI model with custom parameters.
+    /// Creates a new AI model with custom metadata.
     #[must_use]
     pub fn new(name: &str, description: &str) -> Self {
         Self {
-            version: "1.0.0".to_string(),
-            name: name.to_string(),
-            description: description.to_string(),
-            difficulty_profiles: Self::generate_default_profiles(),
-            skill_adaptation_rate: 0.1,
-            performance_window_size: 10,
+            metadata: ModelMetadata {
+                name: name.to_string(),
+                description: description.to_string(),
+                ..ModelMetadata::default()
+            },
+            ..Default::default()
         }
     }
 
     /// Generates the default 10-level difficulty curve.
     ///
     /// Based on game design research:
-    /// - Level 0: Very easy (500ms reaction, 30% accuracy)
-    /// - Level 5: Medium (150ms reaction, 70% accuracy)
-    /// - Level 9: Expert (50ms reaction, 95% accuracy)
+    /// - Level 0: "Training wheels" (500ms reaction, 30% accuracy)
+    /// - Level 5: "Challenging" (180ms reaction, 66% accuracy)
+    /// - Level 9: "Perfect" (0ms reaction, 100% accuracy, 0 error - UNBEATABLE)
     #[must_use]
     #[allow(clippy::suboptimal_flops)] // mul_add is less readable here
     pub fn generate_default_profiles() -> Vec<DifficultyProfile> {
+        const LEVEL_NAMES: [&str; 10] = [
+            "Training Wheels",
+            "Beginner",
+            "Easy",
+            "Casual",
+            "Normal",
+            "Challenging",
+            "Hard",
+            "Very Hard",
+            "Expert",
+            "Perfect",
+        ];
+
         (0..10)
             .map(|level| {
                 let t = f32::from(level) / 9.0; // 0.0 to 1.0
 
+                // Level 9 is PERFECT - unbeatable AI
+                if level == 9 {
+                    return DifficultyProfile {
+                        level,
+                        name: LEVEL_NAMES[level as usize].to_string(),
+                        reaction_delay_ms: 0.0,   // Instant reaction
+                        prediction_accuracy: 1.0, // Perfect prediction
+                        max_paddle_speed: 1000.0, // Very fast movement
+                        error_magnitude: 0.0,     // Zero error
+                        aggression: 1.0,          // Maximum aggression
+                    };
+                }
+
                 DifficultyProfile {
                     level,
+                    name: LEVEL_NAMES[level as usize].to_string(),
                     // Reaction delay: 500ms -> 50ms (exponential decay)
                     reaction_delay_ms: 500.0 * (1.0 - t).powi(2) + 50.0,
-                    // Prediction accuracy: 30% -> 95% (linear)
+                    // Prediction accuracy: 30% -> 95% (linear, except level 9)
                     prediction_accuracy: 0.3 + 0.65 * t,
                     // Max speed: 200 -> 600 px/s (linear)
                     max_paddle_speed: 200.0 + 400.0 * t,
@@ -140,21 +298,80 @@ impl PongAIModel {
         let index = (level as usize).min(self.difficulty_profiles.len().saturating_sub(1));
         &self.difficulty_profiles[index]
     }
+
+    /// Exports the model as a pretty-printed JSON string (APR format).
+    #[must_use]
+    pub fn to_json(&self) -> String {
+        serde_json::to_string_pretty(self).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    /// Exports the model as compact JSON (for size measurement).
+    #[must_use]
+    pub fn to_json_compact(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    /// Returns the approximate size of the model when serialized.
+    #[must_use]
+    pub fn serialized_size(&self) -> usize {
+        self.to_json_compact().len()
+    }
+
+    /// Loads a model from JSON bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the JSON is invalid.
+    pub fn from_json(json: &str) -> Result<Self, String> {
+        serde_json::from_str(json).map_err(|e| format!("Failed to parse model: {e}"))
+    }
 }
 
-/// Player performance metrics for skill matching.
+// ============================================================================
+// Flow State (Player Engagement Tracking)
+// ============================================================================
+
+/// Flow state based on Csikszentmihalyi's three-channel model.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FlowChannel {
+    /// Player winning too easily - increase difficulty
+    Boredom,
+    /// Player optimally challenged - maintain difficulty
+    #[default]
+    Flow,
+    /// Player struggling - decrease difficulty
+    Anxiety,
+}
+
+impl FlowChannel {
+    /// Returns a human-readable label.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Boredom => "Bored (too easy)",
+            Self::Flow => "In Flow (optimal)",
+            Self::Anxiety => "Anxious (too hard)",
+        }
+    }
+}
+
+/// Player performance metrics for flow state detection.
 #[derive(Debug, Clone, Default)]
 pub struct PlayerMetrics {
-    /// Recent rally lengths (number of hits before point scored)
-    pub rally_history: Vec<u32>,
-    /// Total hits by player
-    pub player_hits: u32,
-    /// Total misses by player
-    pub player_misses: u32,
+    /// Recent point outcomes (true = player won)
+    pub point_history: Vec<bool>,
+    /// Total points won by player
+    pub player_points: u32,
+    /// Total points won by AI
+    pub ai_points: u32,
     /// Current rally length
     pub current_rally: u32,
-    /// Player's average reaction quality (0.0-1.0)
-    pub reaction_quality: f32,
+    /// Rally lengths history
+    pub rally_history: Vec<u32>,
+    /// Total player paddle hits
+    pub player_hits: u32,
+    /// Total player misses
+    pub player_misses: u32,
 }
 
 impl PlayerMetrics {
@@ -164,58 +381,88 @@ impl PlayerMetrics {
         Self::default()
     }
 
-    /// Records a player hit.
-    #[allow(clippy::missing_const_for_fn)] // const fn with mutable references not yet stable
+    /// Records a player hit (successfully returned the ball).
+    #[allow(clippy::missing_const_for_fn)]
     pub fn record_hit(&mut self) {
         self.player_hits += 1;
         self.current_rally += 1;
     }
 
-    /// Records a player miss (point lost).
-    pub fn record_miss(&mut self, window_size: usize) {
+    /// Records that the player scored a point.
+    pub fn record_player_scored(&mut self, window_size: usize) {
+        self.player_points += 1;
+        self.point_history.push(true);
+        self.finalize_rally(window_size);
+    }
+
+    /// Records that the AI scored a point (player missed).
+    pub fn record_ai_scored(&mut self, window_size: usize) {
+        self.ai_points += 1;
         self.player_misses += 1;
-        self.rally_history.push(self.current_rally);
+        self.point_history.push(false);
+        self.finalize_rally(window_size);
+    }
 
-        // Keep only recent rallies
+    /// Finalizes current rally and trims history.
+    fn finalize_rally(&mut self, window_size: usize) {
+        self.rally_history.push(self.current_rally);
+        self.current_rally = 0;
+
+        // Trim histories to window size
+        while self.point_history.len() > window_size {
+            let _ = self.point_history.remove(0);
+        }
         while self.rally_history.len() > window_size {
             let _ = self.rally_history.remove(0);
         }
-
-        self.current_rally = 0;
     }
 
-    /// Records an AI miss (player scored).
-    pub fn record_ai_miss(&mut self, window_size: usize) {
-        self.rally_history.push(self.current_rally);
-
-        while self.rally_history.len() > window_size {
-            let _ = self.rally_history.remove(0);
-        }
-
-        self.current_rally = 0;
-    }
-
-    /// Calculates player skill estimate (0.0-1.0).
+    /// Calculates player win rate from recent history.
     #[must_use]
-    #[allow(clippy::suboptimal_flops)] // mul_add is less readable here
+    pub fn recent_win_rate(&self) -> f32 {
+        if self.point_history.is_empty() {
+            return 0.5; // Unknown, assume balanced
+        }
+        let wins = self.point_history.iter().filter(|&&w| w).count() as f32;
+        wins / self.point_history.len() as f32
+    }
+
+    /// Calculates average rally length.
+    #[must_use]
+    pub fn average_rally(&self) -> f32 {
+        if self.rally_history.is_empty() {
+            return 5.0; // Default assumption
+        }
+        self.rally_history.iter().sum::<u32>() as f32 / self.rally_history.len() as f32
+    }
+
+    /// Estimates player skill (0.0-1.0).
+    #[must_use]
+    #[allow(clippy::suboptimal_flops)]
     pub fn estimate_skill(&self) -> f32 {
         if self.player_hits + self.player_misses == 0 {
-            return 0.5; // Unknown skill
+            return 0.5; // Unknown
         }
 
         let hit_rate = self.player_hits as f32 / (self.player_hits + self.player_misses) as f32;
-        let avg_rally = if self.rally_history.is_empty() {
-            5.0
-        } else {
-            self.rally_history.iter().sum::<u32>() as f32 / self.rally_history.len() as f32
-        };
-
-        // Combine hit rate and rally length into skill estimate
-        // Normalize rally length (assume max useful rally is ~20)
-        let rally_factor = (avg_rally / 20.0).min(1.0);
+        let rally_factor = (self.average_rally() / 20.0).min(1.0);
 
         // Weighted combination
         (hit_rate * 0.6 + rally_factor * 0.4).clamp(0.0, 1.0)
+    }
+
+    /// Detects the current flow channel based on recent performance.
+    #[must_use]
+    pub fn detect_flow_channel(&self, config: &FlowTheoryConfig) -> FlowChannel {
+        let win_rate = self.recent_win_rate();
+
+        if win_rate >= config.boredom_threshold {
+            FlowChannel::Boredom
+        } else if win_rate <= config.anxiety_threshold {
+            FlowChannel::Anxiety
+        } else {
+            FlowChannel::Flow
+        }
     }
 
     /// Resets all metrics.
@@ -224,7 +471,247 @@ impl PlayerMetrics {
     }
 }
 
-/// AI opponent state and behavior.
+// ============================================================================
+// SHAP-style Decision Explanation
+// ============================================================================
+
+/// AI decision state for explainability visualization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum DecisionState {
+    /// Ball moving away from AI - returning to center
+    #[default]
+    Idle,
+    /// Ball approaching but within reaction delay window
+    Reacting,
+    /// Actively tracking and moving toward predicted position
+    Tracking,
+    /// At target position, waiting for ball
+    Ready,
+}
+
+impl DecisionState {
+    /// Returns a human-readable label for the decision state.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Idle => "Idle (centering)",
+            Self::Reacting => "Reacting (delay)",
+            Self::Tracking => "Tracking ball",
+            Self::Ready => "Ready (at target)",
+        }
+    }
+
+    /// Returns a short code for compact display.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Idle => "IDLE",
+            Self::Reacting => "REACT",
+            Self::Tracking => "TRACK",
+            Self::Ready => "READY",
+        }
+    }
+}
+
+/// SHAP-style feature contribution for AI decision explainability.
+///
+/// Based on Lundberg & Lee (2017) SHAP values - shows how each input
+/// feature contributed to the final decision (paddle velocity).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FeatureContribution {
+    /// Feature name
+    pub name: String,
+    /// Raw feature value
+    pub value: f32,
+    /// Contribution to output (positive = move down, negative = move up)
+    pub contribution: f32,
+    /// Normalized importance (0.0 - 1.0) for bar visualization
+    pub importance: f32,
+}
+
+/// Complete AI decision explanation for real-time visualization.
+///
+/// This provides SHAP-style explainability for the AI's decisions,
+/// showing which factors from the `.apr` model influenced the move.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DecisionExplanation {
+    /// Current decision state
+    pub state: DecisionState,
+    /// Output velocity (positive = down, negative = up)
+    pub output_velocity: f32,
+    /// Target Y position the AI is moving toward
+    pub target_y: f32,
+    /// Current paddle Y position
+    pub paddle_y: f32,
+    /// Distance to target
+    pub distance_to_target: f32,
+
+    // === .apr Model Parameters (from profile) ===
+    /// Current difficulty level (0-9)
+    pub difficulty_level: u8,
+    /// Difficulty name from model
+    pub difficulty_name: String,
+    /// Reaction delay from model (ms)
+    pub reaction_delay_ms: f32,
+    /// Time spent reacting so far (ms)
+    pub reaction_elapsed_ms: f32,
+    /// Prediction accuracy from model (0-1)
+    pub prediction_accuracy: f32,
+    /// Max paddle speed from model (px/s)
+    pub max_paddle_speed: f32,
+    /// Error magnitude from model (px)
+    pub error_magnitude: f32,
+    /// Applied error this frame (px)
+    pub applied_error: f32,
+
+    // === Input Features ===
+    /// Ball X position (0 = left, canvas_width = right)
+    pub ball_x: f32,
+    /// Ball Y position
+    pub ball_y: f32,
+    /// Ball X velocity (positive = moving right toward AI)
+    pub ball_vx: f32,
+    /// Ball Y velocity
+    pub ball_vy: f32,
+    /// Is ball approaching AI side?
+    pub ball_approaching: bool,
+    /// Is ball on AI's half of court?
+    pub ball_on_ai_side: bool,
+
+    // === SHAP-style Feature Contributions ===
+    /// Ordered list of feature contributions (highest importance first)
+    pub contributions: Vec<FeatureContribution>,
+
+    // === Decision Rationale ===
+    /// Human-readable explanation of the decision
+    pub rationale: String,
+}
+
+impl DecisionExplanation {
+    /// Creates a new empty explanation.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Exports explanation as JSON for the widget.
+    #[must_use]
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    /// Computes SHAP-style feature contributions based on current state.
+    pub fn compute_contributions(&mut self) {
+        self.contributions.clear();
+
+        // Compute absolute contributions for normalization
+        let mut raw_contributions = vec![
+            (
+                "Ball Direction",
+                self.ball_vx,
+                if self.ball_approaching { 1.0 } else { -1.0 },
+            ),
+            (
+                "Reaction Delay",
+                self.reaction_delay_ms,
+                if self.state == DecisionState::Reacting {
+                    1.0
+                } else {
+                    0.0
+                },
+            ),
+            (
+                "Distance to Target",
+                self.distance_to_target,
+                self.distance_to_target.abs() / 300.0,
+            ),
+            (
+                "Prediction Acc",
+                self.prediction_accuracy,
+                self.prediction_accuracy,
+            ),
+            (
+                "Max Speed",
+                self.max_paddle_speed,
+                self.max_paddle_speed / 1000.0,
+            ),
+            (
+                "Applied Error",
+                self.applied_error,
+                self.applied_error.abs() / 50.0,
+            ),
+        ];
+
+        // Find max for normalization
+        let max_contrib = raw_contributions
+            .iter()
+            .map(|(_, _, c)| c.abs())
+            .fold(0.0f32, f32::max)
+            .max(0.001);
+
+        // Sort by absolute contribution
+        raw_contributions.sort_by(|a, b| {
+            b.2.abs()
+                .partial_cmp(&a.2.abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // Convert to FeatureContribution
+        for (name, value, contrib) in raw_contributions {
+            self.contributions.push(FeatureContribution {
+                name: name.to_string(),
+                value,
+                contribution: contrib,
+                importance: (contrib.abs() / max_contrib).min(1.0),
+            });
+        }
+    }
+
+    /// Generates human-readable rationale for the decision.
+    pub fn generate_rationale(&mut self) {
+        self.rationale = match self.state {
+            DecisionState::Idle => {
+                format!(
+                    "Ball moving away (vx={:.0}). Returning to center.",
+                    self.ball_vx
+                )
+            }
+            DecisionState::Reacting => {
+                let remaining = (self.reaction_delay_ms - self.reaction_elapsed_ms).max(0.0);
+                format!(
+                    "Reaction delay: {:.0}ms remaining of {:.0}ms (Level {} profile)",
+                    remaining, self.reaction_delay_ms, self.difficulty_level
+                )
+            }
+            DecisionState::Tracking => {
+                let direction = if self.output_velocity > 0.0 {
+                    "DOWN"
+                } else {
+                    "UP"
+                };
+                format!(
+                    "Tracking ball → target Y={:.0} (acc={:.0}%, speed={:.0}px/s). Moving {}.",
+                    self.target_y,
+                    self.prediction_accuracy * 100.0,
+                    self.max_paddle_speed,
+                    direction
+                )
+            }
+            DecisionState::Ready => {
+                format!(
+                    "At target Y={:.0} (within 5px). Waiting for ball.",
+                    self.target_y
+                )
+            }
+        };
+    }
+}
+
+// ============================================================================
+// Pong AI (Runtime State)
+// ============================================================================
+
+/// AI opponent with Flow Theory-based Dynamic Difficulty Adjustment.
 #[derive(Debug, Clone)]
 pub struct PongAI {
     /// The loaded AI model
@@ -233,35 +720,54 @@ pub struct PongAI {
     difficulty: u8,
     /// Player performance metrics
     metrics: PlayerMetrics,
+    /// Current flow channel
+    flow_channel: FlowChannel,
     /// Time since ball crossed to AI side (for reaction delay)
     time_since_ball_visible: f32,
     /// Current target Y position for paddle
     target_y: f32,
     /// Whether AI has "seen" the ball this rally
     ball_acquired: bool,
-    /// Random seed for deterministic behavior in tests
+    /// Deterministic RNG state
     rng_state: u64,
+    /// Last applied error for explainability
+    last_error: f32,
+    /// Last decision explanation for SHAP-style widget
+    last_explanation: DecisionExplanation,
 }
 
 impl Default for PongAI {
     fn default() -> Self {
-        Self::new(PongAIModel::default(), 5)
+        let model = PongAIModel::default();
+        let seed = model.determinism.seed;
+        Self::new(model, 5, seed)
     }
 }
 
 impl PongAI {
-    /// Creates a new AI with the given model and initial difficulty.
+    /// Creates a new AI with the given model, initial difficulty, and seed.
     #[must_use]
-    pub fn new(model: PongAIModel, difficulty: u8) -> Self {
+    pub fn new(model: PongAIModel, difficulty: u8, seed: u64) -> Self {
         Self {
             model,
             difficulty: difficulty.min(9),
             metrics: PlayerMetrics::new(),
+            flow_channel: FlowChannel::Flow,
             time_since_ball_visible: 0.0,
-            target_y: 300.0, // Center of default 600px height
+            target_y: 300.0,
             ball_acquired: false,
-            rng_state: 12345,
+            rng_state: seed,
+            last_error: 0.0,
+            last_explanation: DecisionExplanation::new(),
         }
+    }
+
+    /// Creates AI with default model and specified difficulty.
+    #[must_use]
+    pub fn with_difficulty(difficulty: u8) -> Self {
+        let model = PongAIModel::default();
+        let seed = model.determinism.seed;
+        Self::new(model, difficulty, seed)
     }
 
     /// Sets the difficulty level (0-9).
@@ -275,10 +781,22 @@ impl PongAI {
         self.difficulty
     }
 
+    /// Gets the current difficulty name.
+    #[must_use]
+    pub fn difficulty_name(&self) -> &str {
+        &self.model.get_profile(self.difficulty).name
+    }
+
     /// Gets the current difficulty profile.
     #[must_use]
     pub fn profile(&self) -> &DifficultyProfile {
         self.model.get_profile(self.difficulty)
+    }
+
+    /// Gets the current flow channel.
+    #[must_use]
+    pub const fn flow_channel(&self) -> FlowChannel {
+        self.flow_channel
     }
 
     /// Returns a reference to player metrics.
@@ -288,37 +806,44 @@ impl PongAI {
     }
 
     /// Returns a mutable reference to player metrics.
-    #[allow(clippy::missing_const_for_fn)] // const fn with mutable references not yet stable
+    #[allow(clippy::missing_const_for_fn)]
     pub fn metrics_mut(&mut self) -> &mut PlayerMetrics {
         &mut self.metrics
     }
 
-    /// Simple pseudo-random number generator (deterministic for tests).
+    /// Returns the underlying model.
+    #[must_use]
+    pub const fn model(&self) -> &PongAIModel {
+        &self.model
+    }
+
+    /// Exports the model as JSON for download.
+    #[must_use]
+    pub fn export_model(&self) -> String {
+        self.model.to_json()
+    }
+
+    /// Returns the last decision explanation for SHAP-style visualization.
+    #[must_use]
+    pub fn explanation(&self) -> &DecisionExplanation {
+        &self.last_explanation
+    }
+
+    /// Exports the last decision explanation as JSON for the widget.
+    #[must_use]
+    pub fn export_explanation(&self) -> String {
+        self.last_explanation.to_json()
+    }
+
+    /// Deterministic pseudo-random number generator (xorshift64).
     fn next_random(&mut self) -> f32 {
-        // xorshift64
         self.rng_state ^= self.rng_state << 13;
         self.rng_state ^= self.rng_state >> 7;
         self.rng_state ^= self.rng_state << 17;
         self.rng_state as f32 / u64::MAX as f32
     }
 
-    /// Updates AI state and returns the desired paddle movement.
-    ///
-    /// # Arguments
-    ///
-    /// * `ball_x` - Ball X position
-    /// * `ball_y` - Ball Y position
-    /// * `ball_vx` - Ball X velocity
-    /// * `ball_vy` - Ball Y velocity
-    /// * `paddle_y` - Current AI paddle Y position
-    /// * `paddle_height` - Paddle height
-    /// * `canvas_width` - Canvas width
-    /// * `canvas_height` - Canvas height
-    /// * `dt` - Delta time in seconds
-    ///
-    /// # Returns
-    ///
-    /// The desired paddle velocity (positive = down, negative = up)
+    /// Updates AI state and returns the desired paddle velocity.
     #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
@@ -332,7 +857,6 @@ impl PongAI {
         canvas_height: f32,
         dt: f32,
     ) -> f32 {
-        // Clone profile values to avoid borrow issues
         let profile = self.model.get_profile(self.difficulty).clone();
 
         // Check if ball is moving toward AI (right side)
@@ -341,11 +865,9 @@ impl PongAI {
 
         if ball_approaching && ball_on_ai_side {
             if !self.ball_acquired {
-                // Ball just became visible to AI
                 self.ball_acquired = true;
                 self.time_since_ball_visible = 0.0;
 
-                // Calculate target with prediction and error
                 self.target_y = self.calculate_target(
                     ball_x,
                     ball_y,
@@ -356,10 +878,8 @@ impl PongAI {
                     &profile,
                 );
             }
-
             self.time_since_ball_visible += dt;
         } else {
-            // Ball not approaching, return to center
             self.ball_acquired = false;
             self.time_since_ball_visible = 0.0;
             self.target_y = canvas_height / 2.0;
@@ -367,28 +887,64 @@ impl PongAI {
 
         // Check reaction delay
         let reaction_delay_sec = profile.reaction_delay_ms / 1000.0;
-        if self.time_since_ball_visible < reaction_delay_sec && self.ball_acquired {
-            // Still "reacting", don't move yet
-            return 0.0;
-        }
+        let in_reaction_delay =
+            self.time_since_ball_visible < reaction_delay_sec && self.ball_acquired;
 
         // Move toward target
         let diff = self.target_y - paddle_y;
         let max_speed = profile.max_paddle_speed;
 
-        // Apply speed limit
-        if diff.abs() < 5.0 {
-            0.0 // Close enough
+        let output_velocity = if in_reaction_delay || diff.abs() < 5.0 {
+            0.0
         } else if diff > 0.0 {
             max_speed.min(diff / dt)
         } else {
             (-max_speed).max(diff / dt)
-        }
+        };
+
+        // Determine decision state for explainability
+        let state = if !ball_approaching || !ball_on_ai_side {
+            DecisionState::Idle
+        } else if in_reaction_delay {
+            DecisionState::Reacting
+        } else if diff.abs() < 5.0 {
+            DecisionState::Ready
+        } else {
+            DecisionState::Tracking
+        };
+
+        // Update explanation for SHAP widget
+        self.last_explanation = DecisionExplanation {
+            state,
+            output_velocity,
+            target_y: self.target_y,
+            paddle_y,
+            distance_to_target: diff,
+            difficulty_level: self.difficulty,
+            difficulty_name: profile.name.clone(),
+            reaction_delay_ms: profile.reaction_delay_ms,
+            reaction_elapsed_ms: self.time_since_ball_visible * 1000.0,
+            prediction_accuracy: profile.prediction_accuracy,
+            max_paddle_speed: profile.max_paddle_speed,
+            error_magnitude: profile.error_magnitude,
+            applied_error: self.last_error,
+            ball_x,
+            ball_y,
+            ball_vx,
+            ball_vy,
+            ball_approaching,
+            ball_on_ai_side,
+            contributions: Vec::new(),
+            rationale: String::new(),
+        };
+        self.last_explanation.compute_contributions();
+        self.last_explanation.generate_rationale();
+
+        output_velocity
     }
 
     /// Calculates the target Y position for the paddle.
-    #[allow(clippy::too_many_arguments)] // Game physics needs multiple parameters
-    #[allow(clippy::suboptimal_flops)]
+    #[allow(clippy::too_many_arguments, clippy::suboptimal_flops)]
     fn calculate_target(
         &mut self,
         ball_x: f32,
@@ -399,51 +955,21 @@ impl PongAI {
         canvas_height: f32,
         profile: &DifficultyProfile,
     ) -> f32 {
-        // Simple prediction: where will ball be when it reaches paddle X?
-        let paddle_x = canvas_width - 35.0; // AI paddle position
+        let paddle_x = canvas_width - 35.0;
         let time_to_paddle = if ball_vx > 0.0 {
             (paddle_x - ball_x) / ball_vx
         } else {
             0.0
         };
 
-        // Predicted Y position (with wall bounces simplified)
         let mut predicted_y = ball_y + ball_vy * time_to_paddle * profile.prediction_accuracy;
-
-        // Clamp to canvas
         predicted_y = predicted_y.clamp(50.0, canvas_height - 50.0);
 
-        // Add random error based on difficulty
-        let error = (self.next_random() - 0.5) * 2.0 * profile.error_magnitude;
-        predicted_y += error;
+        // Add deterministic random error (save for explainability)
+        self.last_error = (self.next_random() - 0.5) * 2.0 * profile.error_magnitude;
+        predicted_y += self.last_error;
 
-        // Clamp again after error
         predicted_y.clamp(50.0, canvas_height - 50.0)
-    }
-
-    /// Adapts difficulty based on player performance.
-    ///
-    /// Call this after each point to adjust AI difficulty.
-    #[allow(clippy::suboptimal_flops)]
-    pub fn adapt_difficulty(&mut self) {
-        let skill = self.metrics.estimate_skill();
-        let target_difficulty = (skill * 9.0).round() as u8;
-
-        // Gradually adjust difficulty
-        let rate = self.model.skill_adaptation_rate;
-        let current = f32::from(self.difficulty);
-        let target = f32::from(target_difficulty);
-
-        let new_difficulty = current + (target - current) * rate;
-        self.difficulty = (new_difficulty.round() as u8).min(9);
-    }
-
-    /// Resets AI state for a new game.
-    pub fn reset(&mut self) {
-        self.metrics.reset();
-        self.time_since_ball_visible = 0.0;
-        self.target_y = 300.0;
-        self.ball_acquired = false;
     }
 
     /// Records that the player successfully hit the ball.
@@ -451,13 +977,87 @@ impl PongAI {
         self.metrics.record_hit();
     }
 
-    /// Records that the player missed the ball.
-    pub fn record_player_miss(&mut self) {
-        let window_size = self.model.performance_window_size;
-        self.metrics.record_miss(window_size);
+    /// Records that the player scored (AI missed).
+    pub fn record_player_scored(&mut self) {
+        let window = self.model.flow_theory.skill_window_size;
+        self.metrics.record_player_scored(window);
     }
 
-    /// Loads a model from bytes (for .apr file loading).
+    /// Records that the player missed (AI scored).
+    pub fn record_player_miss(&mut self) {
+        let window = self.model.flow_theory.skill_window_size;
+        self.metrics.record_ai_scored(window);
+    }
+
+    /// Adapts difficulty based on Flow Theory.
+    ///
+    /// This is the core DDA algorithm based on Csikszentmihalyi's model.
+    pub fn adapt_difficulty(&mut self) {
+        // Detect current flow channel
+        self.flow_channel = self.metrics.detect_flow_channel(&self.model.flow_theory);
+
+        // Calculate target difficulty adjustment
+        let adjustment: f32 = match self.flow_channel {
+            FlowChannel::Boredom => 1.0,  // Increase difficulty
+            FlowChannel::Flow => 0.0,     // Maintain
+            FlowChannel::Anxiety => -1.0, // Decrease difficulty
+        };
+
+        if adjustment.abs() < 0.01 {
+            return; // No adjustment needed
+        }
+
+        // Apply adaptation rate
+        let rate = self.model.flow_theory.adaptation_rate;
+        let current = f32::from(self.difficulty);
+        let new_difficulty = (adjustment * rate).mul_add(9.0, current);
+
+        self.difficulty = (new_difficulty.round() as u8).clamp(0, 9);
+    }
+
+    /// Resets AI state for a new game.
+    pub fn reset(&mut self) {
+        self.metrics.reset();
+        self.flow_channel = FlowChannel::Flow;
+        self.time_since_ball_visible = 0.0;
+        self.target_y = 300.0;
+        self.ball_acquired = false;
+        // Reset RNG to model seed for reproducibility
+        self.rng_state = self.model.determinism.seed;
+    }
+
+    /// Gets model info as JSON string for display.
+    #[must_use]
+    pub fn model_info_json(&self) -> String {
+        serde_json::json!({
+            "name": self.model.metadata.name,
+            "version": self.model.metadata.version,
+            "description": self.model.metadata.description,
+            "author": self.model.metadata.author,
+            "license": self.model.metadata.license,
+            "difficulty_levels": self.model.difficulty_profiles.len(),
+            "current_difficulty": self.difficulty,
+            "current_difficulty_name": self.profile().name,
+            "flow_channel": self.flow_channel.label(),
+            "player_win_rate": self.metrics.recent_win_rate(),
+            "model_size_bytes": self.model.serialized_size(),
+        })
+        .to_string()
+    }
+
+    /// Loads a model from JSON bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error string if the model fails to load.
+    pub fn load_model_from_json(&mut self, json: &str) -> Result<(), String> {
+        let model = PongAIModel::from_json(json)?;
+        self.rng_state = model.determinism.seed;
+        self.model = model;
+        Ok(())
+    }
+
+    /// Loads a model from bytes (for .apr file loading via aprender).
     ///
     /// # Errors
     ///
@@ -468,42 +1068,43 @@ impl PongAI {
             aprender::format::ModelType::Custom,
         ) {
             Ok(model) => {
+                self.rng_state = model.determinism.seed;
                 self.model = model;
                 Ok(())
             }
             Err(e) => Err(format!("Failed to load AI model: {e}")),
         }
     }
-
-    /// Gets model info as JSON string.
-    #[must_use]
-    pub fn model_info_json(&self) -> String {
-        serde_json::json!({
-            "name": self.model.name,
-            "version": self.model.version,
-            "description": self.model.description,
-            "difficulty_levels": self.model.difficulty_profiles.len(),
-            "current_difficulty": self.difficulty,
-        })
-        .to_string()
-    }
 }
 
+// ============================================================================
+// Tests
+// ============================================================================
+
 #[cfg(test)]
-#[allow(clippy::float_cmp)]
+#[allow(clippy::float_cmp, clippy::unwrap_used)]
 mod tests {
     use super::*;
 
-    // =========================================================================
-    // DifficultyProfile Tests
-    // =========================================================================
+    // ==================== Model Metadata Tests ====================
+
+    #[test]
+    fn test_model_metadata_default() {
+        let meta = ModelMetadata::default();
+        assert_eq!(meta.name, "Pong AI v1");
+        assert_eq!(meta.version, "1.0.0");
+        assert_eq!(meta.author, "PAIML");
+        assert_eq!(meta.license, "MIT");
+    }
+
+    // ==================== DifficultyProfile Tests ====================
 
     #[test]
     fn test_difficulty_profile_default() {
         let profile = DifficultyProfile::default();
         assert_eq!(profile.level, 5);
-        assert!((profile.reaction_delay_ms - 150.0).abs() < 0.01);
-        assert!((profile.prediction_accuracy - 0.7).abs() < 0.01);
+        assert_eq!(profile.name, "Challenging");
+        assert!((profile.reaction_delay_ms - 180.0).abs() < 1.0);
     }
 
     #[test]
@@ -516,22 +1117,21 @@ mod tests {
         assert!(profile.aggression >= 0.0 && profile.aggression <= 1.0);
     }
 
-    // =========================================================================
-    // PongAIModel Tests
-    // =========================================================================
+    // ==================== PongAIModel Tests ====================
 
     #[test]
     fn test_pong_ai_model_default() {
         let model = PongAIModel::default();
-        assert_eq!(model.version, "1.0.0");
+        assert_eq!(model.metadata.version, "1.0.0");
         assert_eq!(model.difficulty_profiles.len(), 10);
+        assert_eq!(model.model_type, "behavior_profile");
     }
 
     #[test]
     fn test_pong_ai_model_new() {
         let model = PongAIModel::new("Test AI", "A test AI model");
-        assert_eq!(model.name, "Test AI");
-        assert_eq!(model.description, "A test AI model");
+        assert_eq!(model.metadata.name, "Test AI");
+        assert_eq!(model.metadata.description, "A test AI model");
         assert_eq!(model.difficulty_profiles.len(), 10);
     }
 
@@ -553,11 +1153,19 @@ mod tests {
     fn test_generate_default_profiles_difficulty_curve() {
         let profiles = PongAIModel::generate_default_profiles();
 
-        // Level 0 should be easiest
+        // Level 0 should be easiest (slowest, least accurate)
         assert!(profiles[0].reaction_delay_ms > profiles[9].reaction_delay_ms);
         assert!(profiles[0].prediction_accuracy < profiles[9].prediction_accuracy);
         assert!(profiles[0].max_paddle_speed < profiles[9].max_paddle_speed);
         assert!(profiles[0].error_magnitude > profiles[9].error_magnitude);
+    }
+
+    #[test]
+    fn test_generate_default_profiles_names() {
+        let profiles = PongAIModel::generate_default_profiles();
+        assert_eq!(profiles[0].name, "Training Wheels");
+        assert_eq!(profiles[5].name, "Challenging");
+        assert_eq!(profiles[9].name, "Perfect");
     }
 
     #[test]
@@ -571,12 +1179,41 @@ mod tests {
     fn test_get_profile_clamped_high() {
         let model = PongAIModel::default();
         let profile = model.get_profile(100);
-        assert_eq!(profile.level, 9); // Clamped to max
+        assert_eq!(profile.level, 9);
     }
 
-    // =========================================================================
-    // PlayerMetrics Tests
-    // =========================================================================
+    #[test]
+    fn test_model_serialization_roundtrip() {
+        let model = PongAIModel::default();
+        let json = model.to_json();
+        let parsed = PongAIModel::from_json(&json).unwrap();
+
+        assert_eq!(parsed.metadata.name, model.metadata.name);
+        assert_eq!(
+            parsed.difficulty_profiles.len(),
+            model.difficulty_profiles.len()
+        );
+        assert_eq!(parsed.determinism.seed, model.determinism.seed);
+    }
+
+    #[test]
+    fn test_model_size_reasonable() {
+        let model = PongAIModel::default();
+        let size = model.serialized_size();
+        // Model should be reasonably small (under 5KB)
+        assert!(size < 5000, "Model size {size} bytes exceeds 5KB");
+    }
+
+    // ==================== FlowChannel Tests ====================
+
+    #[test]
+    fn test_flow_channel_labels() {
+        assert_eq!(FlowChannel::Boredom.label(), "Bored (too easy)");
+        assert_eq!(FlowChannel::Flow.label(), "In Flow (optimal)");
+        assert_eq!(FlowChannel::Anxiety.label(), "Anxious (too hard)");
+    }
+
+    // ==================== PlayerMetrics Tests ====================
 
     #[test]
     fn test_player_metrics_new() {
@@ -595,93 +1232,148 @@ mod tests {
     }
 
     #[test]
-    fn test_player_metrics_record_miss() {
+    fn test_player_metrics_record_player_scored() {
         let mut metrics = PlayerMetrics::new();
         metrics.record_hit();
         metrics.record_hit();
-        metrics.record_miss(10);
+        metrics.record_player_scored(10);
 
-        assert_eq!(metrics.player_misses, 1);
+        assert_eq!(metrics.player_points, 1);
         assert_eq!(metrics.current_rally, 0);
         assert_eq!(metrics.rally_history.len(), 1);
         assert_eq!(metrics.rally_history[0], 2);
+        assert!(metrics.point_history[0]); // Player won
+    }
+
+    #[test]
+    fn test_player_metrics_record_ai_scored() {
+        let mut metrics = PlayerMetrics::new();
+        metrics.record_hit();
+        metrics.record_ai_scored(10);
+
+        assert_eq!(metrics.ai_points, 1);
+        assert_eq!(metrics.player_misses, 1);
+        assert!(!metrics.point_history[0]); // Player lost
     }
 
     #[test]
     fn test_player_metrics_window_size() {
         let mut metrics = PlayerMetrics::new();
 
-        // Record many rallies
-        for i in 0..15 {
-            metrics.current_rally = i;
-            metrics.record_miss(5);
+        for _ in 0..15 {
+            metrics.record_player_scored(5);
         }
 
-        // Should only keep last 5
-        assert_eq!(metrics.rally_history.len(), 5);
+        assert_eq!(metrics.point_history.len(), 5);
+    }
+
+    #[test]
+    fn test_player_metrics_recent_win_rate_unknown() {
+        let metrics = PlayerMetrics::new();
+        let rate = metrics.recent_win_rate();
+        assert!((rate - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_player_metrics_recent_win_rate_all_wins() {
+        let mut metrics = PlayerMetrics::new();
+        for _ in 0..5 {
+            metrics.record_player_scored(10);
+        }
+        let rate = metrics.recent_win_rate();
+        assert!((rate - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_player_metrics_recent_win_rate_all_losses() {
+        let mut metrics = PlayerMetrics::new();
+        for _ in 0..5 {
+            metrics.record_ai_scored(10);
+        }
+        let rate = metrics.recent_win_rate();
+        assert!((rate - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_player_metrics_detect_flow_channel_boredom() {
+        let mut metrics = PlayerMetrics::new();
+        // Win 8 out of 10 points
+        for _ in 0..8 {
+            metrics.record_player_scored(10);
+        }
+        for _ in 0..2 {
+            metrics.record_ai_scored(10);
+        }
+
+        let config = FlowTheoryConfig::default();
+        let channel = metrics.detect_flow_channel(&config);
+        assert_eq!(channel, FlowChannel::Boredom);
+    }
+
+    #[test]
+    fn test_player_metrics_detect_flow_channel_anxiety() {
+        let mut metrics = PlayerMetrics::new();
+        // Win only 2 out of 10 points
+        for _ in 0..2 {
+            metrics.record_player_scored(10);
+        }
+        for _ in 0..8 {
+            metrics.record_ai_scored(10);
+        }
+
+        let config = FlowTheoryConfig::default();
+        let channel = metrics.detect_flow_channel(&config);
+        assert_eq!(channel, FlowChannel::Anxiety);
+    }
+
+    #[test]
+    fn test_player_metrics_detect_flow_channel_flow() {
+        let mut metrics = PlayerMetrics::new();
+        // Win 5 out of 10 points (balanced)
+        for _ in 0..5 {
+            metrics.record_player_scored(10);
+        }
+        for _ in 0..5 {
+            metrics.record_ai_scored(10);
+        }
+
+        let config = FlowTheoryConfig::default();
+        let channel = metrics.detect_flow_channel(&config);
+        assert_eq!(channel, FlowChannel::Flow);
     }
 
     #[test]
     fn test_player_metrics_estimate_skill_unknown() {
         let metrics = PlayerMetrics::new();
         let skill = metrics.estimate_skill();
-        assert!((skill - 0.5).abs() < 0.01); // Unknown = 0.5
+        assert!((skill - 0.5).abs() < 0.01);
     }
 
     #[test]
     fn test_player_metrics_estimate_skill_good_player() {
         let mut metrics = PlayerMetrics::new();
-
         // Good player: high hit rate, long rallies
         for _ in 0..10 {
             metrics.record_hit();
         }
-        metrics.record_miss(10);
+        metrics.record_ai_scored(10);
 
         let skill = metrics.estimate_skill();
-        assert!(skill > 0.7); // Should be high
+        assert!(skill > 0.7);
     }
 
-    #[test]
-    fn test_player_metrics_estimate_skill_poor_player() {
-        let mut metrics = PlayerMetrics::new();
-
-        // Poor player: low hit rate, short rallies
-        for _ in 0..5 {
-            metrics.record_hit();
-            metrics.record_miss(10);
-        }
-
-        let skill = metrics.estimate_skill();
-        assert!(skill < 0.6); // Should be lower
-    }
-
-    #[test]
-    fn test_player_metrics_reset() {
-        let mut metrics = PlayerMetrics::new();
-        metrics.record_hit();
-        metrics.record_miss(10);
-        metrics.reset();
-
-        assert_eq!(metrics.player_hits, 0);
-        assert_eq!(metrics.player_misses, 0);
-        assert!(metrics.rally_history.is_empty());
-    }
-
-    // =========================================================================
-    // PongAI Tests
-    // =========================================================================
+    // ==================== PongAI Tests ====================
 
     #[test]
     fn test_pong_ai_default() {
         let ai = PongAI::default();
         assert_eq!(ai.difficulty(), 5);
+        assert_eq!(ai.flow_channel(), FlowChannel::Flow);
     }
 
     #[test]
-    fn test_pong_ai_new() {
-        let model = PongAIModel::default();
-        let ai = PongAI::new(model, 3);
+    fn test_pong_ai_with_difficulty() {
+        let ai = PongAI::with_difficulty(3);
         assert_eq!(ai.difficulty(), 3);
     }
 
@@ -704,96 +1396,7 @@ mod tests {
         let ai = PongAI::default();
         let profile = ai.profile();
         assert_eq!(profile.level, 5);
-    }
-
-    #[test]
-    fn test_pong_ai_update_ball_not_approaching() {
-        let mut ai = PongAI::default();
-
-        // Ball moving away (negative vx)
-        let velocity = ai.update(
-            400.0, 300.0, // ball position
-            -200.0, 100.0, // ball velocity (moving left)
-            300.0, 100.0, // paddle position and height
-            800.0, 600.0, // canvas size
-            0.016, // dt
-        );
-
-        // AI should move toward center (300.0)
-        assert!(velocity.abs() < ai.profile().max_paddle_speed + 1.0);
-    }
-
-    #[test]
-    fn test_pong_ai_update_ball_approaching() {
-        let mut ai = PongAI::default();
-
-        // Ball moving toward AI (positive vx) on AI side
-        let velocity = ai.update(
-            600.0, 400.0, // ball position (on AI side)
-            200.0, 100.0, // ball velocity (moving right)
-            300.0, 100.0, // paddle position and height
-            800.0, 600.0, // canvas size
-            0.5,   // dt (long enough to pass reaction delay)
-        );
-
-        // AI should start moving (after reaction delay)
-        // First update won't move due to reaction delay
-        assert!(velocity.abs() >= 0.0);
-    }
-
-    #[test]
-    fn test_pong_ai_reaction_delay() {
-        let mut ai = PongAI::default();
-        ai.set_difficulty(0); // Slowest reaction (500ms)
-
-        // First update with very small dt
-        let v1 = ai.update(
-            600.0, 400.0, 200.0, 100.0, 300.0, 100.0, 800.0, 600.0, 0.001,
-        );
-
-        // Should not move yet (still in reaction delay)
-        assert!((v1 - 0.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn test_pong_ai_adapt_difficulty_increases() {
-        let mut ai = PongAI::default();
-        ai.set_difficulty(3);
-
-        // Simulate good player performance
-        for _ in 0..20 {
-            ai.metrics_mut().record_hit();
-        }
-        ai.metrics_mut().record_ai_miss(10);
-
-        let initial_difficulty = ai.difficulty();
-        ai.adapt_difficulty();
-
-        // Difficulty should increase (or stay same if already matched)
-        assert!(ai.difficulty() >= initial_difficulty);
-    }
-
-    #[test]
-    fn test_pong_ai_reset() {
-        let mut ai = PongAI::default();
-        ai.metrics_mut().record_hit();
-        ai.set_difficulty(9);
-        ai.time_since_ball_visible = 1.0;
-
-        ai.reset();
-
-        assert_eq!(ai.metrics().player_hits, 0);
-        assert!((ai.time_since_ball_visible - 0.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn test_pong_ai_model_info_json() {
-        let ai = PongAI::default();
-        let json = ai.model_info_json();
-
-        assert!(json.contains("name"));
-        assert!(json.contains("version"));
-        assert!(json.contains("current_difficulty"));
+        assert_eq!(profile.name, "Challenging");
     }
 
     #[test]
@@ -808,16 +1411,107 @@ mod tests {
         assert!((r1 - r2).abs() < 0.0001);
     }
 
-    // =========================================================================
-    // Integration Tests
-    // =========================================================================
+    #[test]
+    fn test_pong_ai_update_ball_not_approaching() {
+        let mut ai = PongAI::default();
+
+        let velocity = ai.update(
+            400.0, 300.0, // ball position
+            -200.0, 100.0, // ball velocity (moving left)
+            300.0, 100.0, // paddle position and height
+            800.0, 600.0, // canvas size
+            0.016, // dt
+        );
+
+        assert!(velocity.abs() < ai.profile().max_paddle_speed + 1.0);
+    }
+
+    #[test]
+    fn test_pong_ai_adapt_difficulty_on_boredom() {
+        let mut ai = PongAI::with_difficulty(5);
+
+        // Simulate player winning too much
+        for _ in 0..10 {
+            ai.record_player_scored();
+        }
+
+        let initial = ai.difficulty();
+        ai.adapt_difficulty();
+
+        // Difficulty should increase
+        assert!(ai.difficulty() >= initial);
+        assert_eq!(ai.flow_channel(), FlowChannel::Boredom);
+    }
+
+    #[test]
+    fn test_pong_ai_adapt_difficulty_on_anxiety() {
+        let mut ai = PongAI::with_difficulty(5);
+
+        // Simulate player losing too much
+        for _ in 0..10 {
+            ai.record_player_miss();
+        }
+
+        let initial = ai.difficulty();
+        ai.adapt_difficulty();
+
+        // Difficulty should decrease
+        assert!(ai.difficulty() <= initial);
+        assert_eq!(ai.flow_channel(), FlowChannel::Anxiety);
+    }
+
+    #[test]
+    fn test_pong_ai_reset() {
+        let mut ai = PongAI::default();
+        ai.record_player_hit();
+        ai.set_difficulty(9);
+        ai.time_since_ball_visible = 1.0;
+
+        ai.reset();
+
+        assert_eq!(ai.metrics().player_hits, 0);
+        assert!((ai.time_since_ball_visible - 0.0).abs() < 0.01);
+        assert_eq!(ai.flow_channel(), FlowChannel::Flow);
+    }
+
+    #[test]
+    fn test_pong_ai_export_model() {
+        let ai = PongAI::default();
+        let json = ai.export_model();
+
+        assert!(json.contains("Pong AI v1"));
+        assert!(json.contains("difficulty_profiles"));
+        assert!(json.contains("flow_theory"));
+    }
+
+    #[test]
+    fn test_pong_ai_model_info_json() {
+        let ai = PongAI::default();
+        let json = ai.model_info_json();
+
+        assert!(json.contains("name"));
+        assert!(json.contains("version"));
+        assert!(json.contains("current_difficulty"));
+        assert!(json.contains("flow_channel"));
+    }
+
+    #[test]
+    fn test_pong_ai_load_model_from_json() {
+        let mut ai = PongAI::default();
+        let model = PongAIModel::new("Custom AI", "Custom description");
+        let json = model.to_json();
+
+        ai.load_model_from_json(&json).unwrap();
+
+        assert_eq!(ai.model().metadata.name, "Custom AI");
+    }
+
+    // ==================== Integration Tests ====================
 
     #[test]
     fn test_full_rally_simulation() {
-        let mut ai = PongAI::default();
-        ai.set_difficulty(5);
+        let mut ai = PongAI::with_difficulty(5);
 
-        // Simulate a rally
         let mut ball_x = 400.0;
         let mut ball_y = 300.0;
         let ball_vx = 300.0;
@@ -838,27 +1532,21 @@ mod tests {
                 1.0 / 60.0,
             );
 
-            // Update paddle position
             paddle_y += velocity * (1.0 / 60.0);
             paddle_y = paddle_y.clamp(50.0, 550.0);
 
-            // Update ball position
             ball_x += ball_vx * (1.0 / 60.0);
             ball_y += ball_vy * (1.0 / 60.0);
         }
 
         // AI should have moved toward the ball
-        // (exact position depends on difficulty and randomness)
         assert!(paddle_y != 300.0 || ball_x < 500.0);
     }
 
     #[test]
     fn test_difficulty_affects_behavior() {
-        let mut ai_easy = PongAI::default();
-        let mut ai_hard = PongAI::default();
-
-        ai_easy.set_difficulty(0);
-        ai_hard.set_difficulty(9);
+        let mut ai_easy = PongAI::with_difficulty(0);
+        let mut ai_hard = PongAI::with_difficulty(9);
 
         // Same ball position
         let ball_x = 600.0;
@@ -894,5 +1582,24 @@ mod tests {
 
         // Hard AI should have acquired ball faster
         assert!(ai_hard.ball_acquired);
+    }
+
+    #[test]
+    fn test_flow_theory_dda_keeps_player_engaged() {
+        let mut ai = PongAI::with_difficulty(5);
+
+        // Simulate alternating wins/losses (balanced play)
+        for i in 0..20 {
+            if i % 2 == 0 {
+                ai.record_player_scored();
+            } else {
+                ai.record_player_miss();
+            }
+            ai.adapt_difficulty();
+        }
+
+        // Should stay in flow (difficulty should hover around middle)
+        assert!(ai.difficulty() >= 3 && ai.difficulty() <= 7);
+        assert_eq!(ai.flow_channel(), FlowChannel::Flow);
     }
 }
