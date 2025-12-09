@@ -24,6 +24,7 @@ mod components {
 
     /// Marks an entity as a paddle
     #[derive(Debug, Clone, Copy)]
+    #[allow(dead_code)]
     pub struct Paddle {
         pub player: u8,
     }

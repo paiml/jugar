@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Procedural generation errors
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ProcgenError {
     /// Generation failed to complete
     #[error("Generation failed: {0}")]
@@ -61,13 +61,14 @@ impl Rng {
     }
 
     /// Generates a random f32 in [0, 1)
+    #[allow(clippy::cast_precision_loss)]
     pub fn next_f32(&mut self) -> f32 {
         (self.next_u64() as f32) / (u64::MAX as f32)
     }
 
     /// Generates a random f32 in [min, max)
     pub fn range_f32(&mut self, min: f32, max: f32) -> f32 {
-        min + self.next_f32() * (max - min)
+        self.next_f32().mul_add(max - min, min)
     }
 
     /// Generates a random usize in [0, max)
@@ -108,7 +109,7 @@ pub struct ValueNoise {
 impl ValueNoise {
     /// Creates a new value noise generator
     #[must_use]
-    pub fn new(seed: u64) -> Self {
+    pub const fn new(seed: u64) -> Self {
         Self {
             seed,
             scale: 1.0,
@@ -171,8 +172,8 @@ impl ValueNoise {
         let yf = y - y.floor();
 
         // Smoothstep
-        let u = xf * xf * (3.0 - 2.0 * xf);
-        let v = yf * yf * (3.0 - 2.0 * yf);
+        let u = xf * xf * 2.0f32.mul_add(-xf, 3.0);
+        let v = yf * yf * 2.0f32.mul_add(-yf, 3.0);
 
         // Corner values
         let aa = self.hash(xi, yi);
@@ -186,6 +187,7 @@ impl ValueNoise {
         lerp(x1, x2, v)
     }
 
+    #[allow(clippy::unreadable_literal)]
     fn hash(&self, x: i32, y: i32) -> f32 {
         let n = (x.wrapping_mul(374761393))
             .wrapping_add(y.wrapping_mul(668265263))
@@ -194,7 +196,9 @@ impl ValueNoise {
             .wrapping_mul(n.wrapping_mul(n.wrapping_mul(60493)))
             .wrapping_add(19990303);
         let n = (n >> 1) & 0x7FFF_FFFF;
-        n as f32 / 0x7FFF_FFFF as f32
+        #[allow(clippy::cast_precision_loss)]
+        let result = n as f32 / 0x7FFF_FFFF as f32;
+        result
     }
 }
 
@@ -205,7 +209,7 @@ impl Default for ValueNoise {
 }
 
 fn lerp(a: f32, b: f32, t: f32) -> f32 {
-    a + t * (b - a)
+    t.mul_add(b - a, a)
 }
 
 // ============================================================================
@@ -267,7 +271,7 @@ impl Room {
 
     /// Checks if this room intersects another
     #[must_use]
-    pub const fn intersects(&self, other: &Room) -> bool {
+    pub const fn intersects(&self, other: &Self) -> bool {
         self.x <= other.x + other.width
             && self.x + self.width >= other.x
             && self.y <= other.y + other.height
@@ -360,7 +364,7 @@ pub struct DungeonGenerator {
 impl DungeonGenerator {
     /// Creates a new dungeon generator
     #[must_use]
-    pub fn new(width: usize, height: usize) -> Self {
+    pub const fn new(width: usize, height: usize) -> Self {
         Self {
             width,
             height,
@@ -387,6 +391,10 @@ impl DungeonGenerator {
     }
 
     /// Generates a dungeon with the given seed
+    ///
+    /// # Errors
+    ///
+    /// Returns `ProcgenError::GenerationFailed` if the dungeon cannot be generated.
     pub fn generate(&self, seed: u64) -> Result<Dungeon> {
         let mut rng = Rng::new(seed);
         let mut dungeon = Dungeon::new(self.width, self.height);
@@ -439,18 +447,18 @@ impl DungeonGenerator {
 
             // Randomly choose horizontal-first or vertical-first
             if rng.next_f32() < 0.5 {
-                self.carve_h_corridor(&mut dungeon, x1, x2, y1);
-                self.carve_v_corridor(&mut dungeon, y1, y2, x2);
+                Self::carve_h_corridor(&mut dungeon, x1, x2, y1);
+                Self::carve_v_corridor(&mut dungeon, y1, y2, x2);
             } else {
-                self.carve_v_corridor(&mut dungeon, y1, y2, x1);
-                self.carve_h_corridor(&mut dungeon, x1, x2, y2);
+                Self::carve_v_corridor(&mut dungeon, y1, y2, x1);
+                Self::carve_h_corridor(&mut dungeon, x1, x2, y2);
             }
         }
 
         Ok(dungeon)
     }
 
-    fn carve_h_corridor(&self, dungeon: &mut Dungeon, x1: i32, x2: i32, y: i32) {
+    fn carve_h_corridor(dungeon: &mut Dungeon, x1: i32, x2: i32, y: i32) {
         let (start, end) = if x1 < x2 { (x1, x2) } else { (x2, x1) };
         for x in start..=end {
             if dungeon.in_bounds(x, y) {
@@ -464,7 +472,7 @@ impl DungeonGenerator {
         }
     }
 
-    fn carve_v_corridor(&self, dungeon: &mut Dungeon, y1: i32, y2: i32, x: i32) {
+    fn carve_v_corridor(dungeon: &mut Dungeon, y1: i32, y2: i32, x: i32) {
         let (start, end) = if y1 < y2 { (y1, y2) } else { (y2, y1) };
         for y in start..=end {
             if dungeon.in_bounds(x, y) {
@@ -529,7 +537,7 @@ impl Direction {
     }
 
     /// All directions
-    pub const ALL: [Direction; 4] = [Self::Up, Self::Down, Self::Left, Self::Right];
+    pub const ALL: [Self; 4] = [Self::Up, Self::Down, Self::Left, Self::Right];
 }
 
 /// Adjacency rules for WFC
@@ -639,6 +647,10 @@ impl Wfc {
     }
 
     /// Runs the WFC algorithm to completion
+    ///
+    /// # Errors
+    ///
+    /// Returns `ProcgenError::GenerationFailed` if the WFC algorithm encounters a contradiction.
     pub fn collapse(&mut self) -> Result<()> {
         loop {
             // Find cell with lowest entropy (not collapsed)
@@ -768,7 +780,7 @@ impl fmt::Debug for Wfc {
             .field("width", &self.width)
             .field("height", &self.height)
             .field("tiles", &self.all_tiles.len())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -793,7 +805,7 @@ mod tests {
         let mut rng = Rng::new(42);
         for _ in 0..100 {
             let val = rng.range_f32(10.0, 20.0);
-            assert!(val >= 10.0 && val < 20.0);
+            assert!((10.0..20.0).contains(&val));
         }
     }
 
@@ -805,7 +817,7 @@ mod tests {
 
         // Should be permutation (same elements)
         let mut sorted = items.clone();
-        sorted.sort();
+        sorted.sort_unstable();
         assert_eq!(sorted, vec![1, 2, 3, 4, 5]);
     }
 
@@ -817,7 +829,7 @@ mod tests {
         for x in 0..10 {
             for y in 0..10 {
                 let val = noise.sample(x as f32, y as f32);
-                assert!(val >= 0.0 && val <= 1.0);
+                assert!((0.0..=1.0).contains(&val));
             }
         }
     }

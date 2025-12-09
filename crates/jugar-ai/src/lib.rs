@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// AI system errors
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum AiError {
     /// No valid plan found
     #[error("No valid plan found to achieve goal")]
@@ -188,7 +188,7 @@ pub struct Planner {
 impl Planner {
     /// Creates a new planner
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             actions: Vec::new(),
         }
@@ -202,6 +202,10 @@ impl Planner {
     /// Plans a sequence of actions to achieve the goal
     ///
     /// Uses A* search through action space.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AiError::PlanningFailed` if no valid plan can be found.
     pub fn plan(&self, current_state: &WorldState, goal: &Goal) -> Result<Vec<Action>> {
         if goal.is_satisfied(current_state) {
             return Ok(Vec::new());

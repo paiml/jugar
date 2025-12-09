@@ -11,7 +11,7 @@
 #![warn(missing_docs)]
 
 use core::fmt;
-use std::time::Duration;
+use core::time::Duration;
 
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
@@ -42,7 +42,7 @@ impl fmt::Display for PhysicsBackend {
 }
 
 /// Physics errors
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum PhysicsError {
     /// Backend not available
     #[error("Physics backend {0} not available")]
@@ -72,7 +72,7 @@ pub struct RigidBody {
 impl RigidBody {
     /// Creates a new dynamic rigid body
     #[must_use]
-    pub fn new(position: Position) -> Self {
+    pub const fn new(position: Position) -> Self {
         Self {
             position,
             velocity: Velocity::zero(),
@@ -85,7 +85,7 @@ impl RigidBody {
 
     /// Creates a static rigid body
     #[must_use]
-    pub fn new_static(position: Position) -> Self {
+    pub const fn new_static(position: Position) -> Self {
         Self {
             position,
             velocity: Velocity::zero(),
@@ -131,7 +131,7 @@ pub struct PhysicsWorld {
 impl PhysicsWorld {
     /// Creates a new physics world with automatic backend detection
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         let backend = detect_best_backend();
         Self {
             backend,
@@ -142,7 +142,7 @@ impl PhysicsWorld {
 
     /// Creates a physics world with a specific backend
     #[must_use]
-    pub fn with_backend(backend: PhysicsBackend) -> Self {
+    pub const fn with_backend(backend: PhysicsBackend) -> Self {
         Self {
             backend,
             bodies: Vec::new(),
@@ -162,6 +162,7 @@ impl PhysicsWorld {
     }
 
     /// Adds a body to the world
+    #[allow(clippy::cast_possible_truncation)]
     pub fn add_body(&mut self, body: RigidBody) -> BodyHandle {
         let handle = BodyHandle(self.bodies.len() as u32);
         self.bodies.push(body);
@@ -221,13 +222,13 @@ impl fmt::Debug for PhysicsWorld {
         f.debug_struct("PhysicsWorld")
             .field("backend", &self.backend)
             .field("body_count", &self.bodies.len())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
 /// Detects the best available physics backend
 #[must_use]
-pub fn detect_best_backend() -> PhysicsBackend {
+pub const fn detect_best_backend() -> PhysicsBackend {
     // In WASM, we'd check for WebGPU availability
     // For now, default to SIMD
     PhysicsBackend::WasmSimd
@@ -235,7 +236,7 @@ pub fn detect_best_backend() -> PhysicsBackend {
 
 /// Detects if WebGPU is available
 #[must_use]
-pub fn detect_webgpu() -> bool {
+pub const fn detect_webgpu() -> bool {
     // Would check navigator.gpu in WASM
     false
 }

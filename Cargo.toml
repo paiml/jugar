@@ -90,6 +90,12 @@ similar_names = "allow"            # Physics code often has similar var names
 std_instead_of_core = "warn"
 std_instead_of_alloc = "warn"
 
+# Game engine specific - numeric precision is acceptable
+cast_possible_truncation = "allow"  # Intentional for game engine IDs/indices
+cast_precision_loss = "allow"       # Acceptable for game physics
+cast_sign_loss = "allow"            # Intentional in RNG/hash functions
+cast_possible_wrap = "allow"        # Intentional in hash functions
+
 [profile.dev]
 opt-level = 1  # Faster dev builds for game iteration
 
