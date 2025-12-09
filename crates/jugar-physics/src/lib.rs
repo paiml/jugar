@@ -241,6 +241,7 @@ pub fn detect_webgpu() -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -274,9 +275,11 @@ mod tests {
         let body = RigidBody::new(Position::zero()).with_velocity(Velocity::new(10.0, 0.0));
         let handle = world.add_body(body);
 
-        world.step(1.0);
+        let _ = world.step(1.0);
 
-        let body = world.get_body(handle).unwrap();
+        let body = world.get_body(handle);
+        assert!(body.is_some(), "Body should exist");
+        let body = body.expect("checked above");
         assert!(
             (body.position.x - 10.0).abs() < f32::EPSILON,
             "Body should move by velocity"
@@ -290,9 +293,11 @@ mod tests {
 
         let handle = world.add_body(RigidBody::new(Position::new(0.0, 100.0)));
 
-        world.step(1.0);
+        let _ = world.step(1.0);
 
-        let body = world.get_body(handle).unwrap();
+        let body = world.get_body(handle);
+        assert!(body.is_some(), "Body should exist");
+        let body = body.expect("checked above");
         assert!(
             (body.velocity.y - (-10.0)).abs() < f32::EPSILON,
             "Gravity should affect velocity"
@@ -306,9 +311,11 @@ mod tests {
 
         let handle = world.add_body(RigidBody::new_static(Position::new(0.0, 0.0)));
 
-        world.step(1.0);
+        let _ = world.step(1.0);
 
-        let body = world.get_body(handle).unwrap();
+        let body = world.get_body(handle);
+        assert!(body.is_some(), "Body should exist");
+        let body = body.expect("checked above");
         assert!(
             body.position.y.abs() < f32::EPSILON,
             "Static body should not move"

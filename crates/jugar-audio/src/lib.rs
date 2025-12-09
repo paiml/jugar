@@ -486,6 +486,7 @@ impl fmt::Debug for AudioSystem {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -680,8 +681,8 @@ mod tests {
     #[test]
     fn test_audio_system_stop_channel() {
         let mut system = AudioSystem::new();
-        system.play(SoundSource::new("music").with_channel(AudioChannel::Music));
-        system.play(SoundSource::new("effect").with_channel(AudioChannel::Effects));
+        let _ = system.play(SoundSource::new("music").with_channel(AudioChannel::Music));
+        let _ = system.play(SoundSource::new("effect").with_channel(AudioChannel::Effects));
 
         system.stop_channel(AudioChannel::Music);
         system.update(0.0);

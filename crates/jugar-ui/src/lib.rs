@@ -272,6 +272,7 @@ impl Label {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -346,7 +347,7 @@ mod tests {
             .with_anchor(Anchor::TopLeft)
             .with_offset(Vec2::new(10.0, 10.0));
         element.visible = false;
-        container.add_widget("button", element);
+        let _ = container.add_widget("button", element);
 
         // Should miss invisible widget
         let hit = container.hit_test(Vec2::new(50.0, 30.0));
@@ -370,9 +371,9 @@ mod tests {
     #[test]
     fn test_sorted_for_render() {
         let mut container = UiContainer::new(1920.0, 1080.0);
-        container.add_widget("low", UiElement::default().with_z_order(0));
-        container.add_widget("high", UiElement::default().with_z_order(10));
-        container.add_widget("mid", UiElement::default().with_z_order(5));
+        let _ = container.add_widget("low", UiElement::default().with_z_order(0));
+        let _ = container.add_widget("high", UiElement::default().with_z_order(10));
+        let _ = container.add_widget("mid", UiElement::default().with_z_order(5));
 
         let sorted = container.sorted_for_render();
         assert_eq!(sorted[0].0 .0, "low");
