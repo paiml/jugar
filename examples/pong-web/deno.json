@@ -1,0 +1,11 @@
+{
+  "tasks": {
+    "lint": "deno lint tests/*.ts playwright.config.ts"
+  },
+  "lint": {
+    "exclude": ["node_modules/**/*", "pkg/**/*"],
+    "rules": {
+      "exclude": ["no-explicit-any", "no-process-global"]
+    }
+  }
+}

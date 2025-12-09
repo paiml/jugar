@@ -9,7 +9,7 @@
 
 WASM_TARGET := wasm32-unknown-unknown
 
-.PHONY: help tier1 tier2 tier3 build build-wasm build-web serve-web test test-fast test-property test-property-full test-e2e test-e2e-headed coverage coverage-summary coverage-open coverage-check coverage-ci coverage-clean lint lint-fast lint-bash fmt clean all dev bench mutate mutate-quick mutate-file mutate-report kaizen pmat-tdg pmat-analyze pmat-score pmat-rust-score pmat-mutate pmat-validate-docs pmat-quality-gate pmat-context pmat-all install-tools verify-no-js verify-batuta-deps
+.PHONY: help tier1 tier2 tier3 build build-wasm build-web serve-web test test-fast test-property test-property-full test-e2e test-e2e-headed coverage coverage-summary coverage-open coverage-check coverage-ci coverage-clean lint lint-all lint-fast lint-bash lint-ts lint-html lint-js-complexity fmt clean all dev bench mutate mutate-quick mutate-file mutate-report kaizen pmat-tdg pmat-analyze pmat-ts pmat-score pmat-rust-score pmat-mutate pmat-validate-docs pmat-quality-gate pmat-context pmat-all install-tools verify-no-js verify-batuta-deps load-test load-test-quick load-test-full ai-test ai-simulate trace-test
 
 # Default target
 all: tier2
@@ -136,16 +136,27 @@ test-wasm: ## Run WASM-compatible tests
 # ============================================================================
 # QUALITY TARGETS
 # ============================================================================
-lint: ## Full clippy analysis
+lint: ## Full clippy analysis (Rust only)
 	cargo clippy --all-targets --all-features -- -D warnings
+
+lint-all: lint lint-bash lint-ts ## Comprehensive lint: Rust + Makefile/shell + TypeScript
+	@echo ""
+	@echo "✅ All linting complete (Rust, Makefile/shell, TypeScript)"
 
 lint-bash: ## Lint Makefile and shell scripts with bashrs
 	@echo "🔍 Linting Makefile and shell scripts with bashrs..."
+	@command -v bashrs >/dev/null 2>&1 || { echo "❌ bashrs not installed. Install: cargo install bashrs"; exit 1; }
 	bashrs make lint Makefile
 	@if ls scripts/*.sh 2>/dev/null | grep -q .; then \
 		bashrs lint scripts/*.sh; \
 	fi
-	@echo "✅ Shell linting complete"
+	@echo "✅ Shell/Makefile linting complete"
+
+lint-ts: ## Lint TypeScript test files with deno
+	@echo "🔍 Linting TypeScript files with deno..."
+	@command -v deno >/dev/null 2>&1 || { echo "❌ deno not installed. Install: curl -fsSL https://deno.land/install.sh | sh"; exit 1; }
+	cd examples/pong-web && deno task lint
+	@echo "✅ TypeScript linting complete"
 
 fmt: ## Format code
 	cargo fmt
@@ -159,33 +170,18 @@ fmt-check: ## Check formatting
 # Exclude patterns: binaries and code generators (not library code)
 COV_IGNORE := --ignore-filename-regex='bin/.*\.rs'
 
-coverage: ## Generate HTML coverage report (two-phase pattern)
-	@echo "📊 Running comprehensive test coverage analysis (target: ≥95%)..."
-	@echo "🔍 Checking for cargo-llvm-cov and cargo-nextest..."
-	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
-	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
-	@echo "🧹 Cleaning old coverage data..."
-	@cargo llvm-cov clean --workspace
-	@mkdir -p target/coverage
-	@echo "⚙️  Temporarily disabling global cargo config (mold breaks coverage)..."
+coverage: ## Generate coverage report (≥95% required)
+	@echo "📊 Generating coverage report (target: ≥95%)..."
+	@# Temporarily disable mold linker (breaks LLVM coverage)
 	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
-	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
-	@cargo llvm-cov --no-report nextest --no-tests=warn --all-features --workspace
-	@echo "📊 Phase 2: Generating coverage reports..."
+	@cargo llvm-cov --workspace --lcov --output-path lcov.info $(COV_IGNORE)
 	@cargo llvm-cov report --html --output-dir target/coverage/html $(COV_IGNORE)
-	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info $(COV_IGNORE)
-	@echo "⚙️  Restoring global cargo config..."
+	@# Restore mold linker
 	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
+	@echo "✅ Coverage report: target/coverage/html/index.html"
 	@echo ""
-	@echo "📊 Coverage Summary:"
-	@echo "=================="
-	@cargo llvm-cov report --summary-only $(COV_IGNORE)
-	@echo ""
-	@echo "💡 COVERAGE INSIGHTS:"
-	@echo "- HTML report: target/coverage/html/index.html"
-	@echo "- LCOV file: target/coverage/lcov.info"
-	@echo "- Open HTML: make coverage-open"
-	@echo "- Excluded: bin/*.rs (code generators)"
+	@echo "📊 Coverage by Crate:"
+	@cargo llvm-cov report $(COV_IGNORE) 2>/dev/null | grep -E "^crates|TOTAL" || cargo llvm-cov report $(COV_IGNORE)
 
 coverage-summary: ## Show coverage summary
 	@cargo llvm-cov report --summary-only $(COV_IGNORE) 2>/dev/null || echo "Run 'make coverage' first"
@@ -234,11 +230,22 @@ coverage-clean: ## Clean coverage artifacts
 pmat-tdg: ## Run Technical Debt Grading
 	pmat analyze tdg --min-grade B+ --include-components
 
-pmat-analyze: ## Run comprehensive PMAT analysis
+pmat-analyze: ## Run comprehensive PMAT analysis (Rust)
 	pmat analyze complexity --path crates/
 	pmat analyze satd
 	pmat analyze dead-code
 	pmat analyze duplicate
+
+pmat-ts: ## Run PMAT analysis on TypeScript test files
+	@echo "🔍 Running PMAT analysis on TypeScript files..."
+	@echo ""
+	@echo "=== Complexity Analysis ==="
+	pmat analyze complexity --path examples/pong-web/tests
+	@echo ""
+	@echo "=== SATD Analysis ==="
+	pmat analyze satd --path examples/pong-web/tests
+	@echo ""
+	@echo "✅ TypeScript PMAT analysis complete"
 
 pmat-score: ## Calculate repository health score
 	pmat repo-score . --deep
@@ -262,10 +269,11 @@ pmat-quality-gate: ## Run comprehensive quality gate
 pmat-context: ## Generate deep context for LLM
 	pmat context --output deep_context.md --format llm-optimized
 
-pmat-all: ## Run all PMAT checks
+pmat-all: ## Run all PMAT checks (Rust + TypeScript)
 	@echo "🔍 Running all PMAT checks..."
 	$(MAKE) pmat-tdg
 	$(MAKE) pmat-analyze
+	$(MAKE) pmat-ts
 	$(MAKE) pmat-score
 	$(MAKE) pmat-rust-score-fast
 	$(MAKE) pmat-validate-docs
@@ -372,21 +380,22 @@ verify-no-js: ## Verify NO JavaScript in project (CRITICAL)
 	@echo "   (Note: Minimal JS in HTML loaders is allowed for event forwarding only)"
 	@echo ""
 	@echo "  [1/5] Checking for standalone .js files..."
-	@# Allow wasm-pack generated pkg/ directories
-	@if find . -name "*.js" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*" | grep -q .; then \
+	@# Allow wasm-pack generated pkg/ directories and Playwright node_modules (test infrastructure only)
+	@if find . -name "*.js" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*" -not -path "*/node_modules/*" | grep -q .; then \
 		echo "❌ FAIL: JavaScript files detected!"; \
-		find . -name "*.js" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*"; \
+		find . -name "*.js" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*" -not -path "*/node_modules/*"; \
 		exit 1; \
 	fi
-	@echo "  ✅ No standalone .js files (wasm-pack pkg/ excluded)"
+	@echo "  ✅ No standalone .js files (wasm-pack pkg/ and node_modules excluded)"
 	@echo ""
-	@echo "  [2/5] Checking for .ts files..."
-	@if find . -name "*.ts" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*" | grep -q .; then \
-		echo "❌ FAIL: TypeScript files detected!"; \
-		find . -name "*.ts" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*"; \
+	@echo "  [2/5] Checking for .ts files (excluding test files and type definitions)..."
+	@# Allow: Playwright test files, playwright.config.ts, node_modules, .d.ts type definitions
+	@if find . -name "*.ts" -not -name "*.d.ts" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*" -not -path "*/node_modules/*" -not -path "*/examples/pong-web/tests/*" -not -name "playwright.config.ts" | grep -q .; then \
+		echo "❌ FAIL: TypeScript files detected outside allowed test directories!"; \
+		find . -name "*.ts" -not -name "*.d.ts" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*" -not -path "*/node_modules/*" -not -path "*/examples/pong-web/tests/*" -not -name "playwright.config.ts"; \
 		exit 1; \
 	fi
-	@echo "  ✅ No .ts files"
+	@echo "  ✅ No .ts files (Playwright tests, .d.ts, node_modules excluded)"
 	@echo ""
 	@echo "  [3/5] Checking for package.json..."
 	@if [ -f "package.json" ]; then \
@@ -458,6 +467,109 @@ install-tools: ## Install required development tools
 	cargo install bashrs || echo "bashrs may require manual installation"
 	cargo install pmat || echo "PMAT may require manual installation"
 	@echo "✅ Tools installed!"
+
+# ============================================================================
+# LOAD TESTING & CHAOS ENGINEERING
+# ============================================================================
+load-test: ## Run all load tests (chaos + proptest + example)
+	@echo "🔥 LOAD TESTING & CHAOS ENGINEERING SUITE"
+	@echo "=========================================="
+	@echo ""
+	@echo "  [1/4] Running chaos engineering tests..."
+	@cargo test -p jugar-web --test chaos -- --nocapture 2>&1 | tail -80
+	@echo ""
+	@echo "  [2/4] Running property-based tests..."
+	@PROPTEST_CASES=100 cargo test -p jugar-web --test proptest_game -- --nocapture 2>&1 | tail -50
+	@echo ""
+	@echo "  [3/4] Running load test example (all tiers)..."
+	@cargo run -p jugar-web --example load_test 2>&1
+	@echo ""
+	@echo "  [4/4] Running tracing validation..."
+	@cargo test -p jugar-web tracer -- --nocapture 2>&1 | tail -20
+	@echo ""
+	@echo "✅ Load testing complete!"
+
+load-test-quick: ## Quick load test (tier 1 + chaos only, <1min)
+	@echo "⚡ QUICK LOAD TEST (tier 1 + chaos)"
+	@echo "==================================="
+	@cargo test -p jugar-web --test chaos -- --nocapture 2>&1 | tail -40
+	@echo ""
+	@echo "✅ Quick load test complete!"
+
+load-test-full: ## Full load test with detailed output
+	@echo "🔥 FULL LOAD TESTING SUITE (DETAILED)"
+	@echo "======================================"
+	@echo ""
+	@echo "=== CHAOS ENGINEERING TESTS ==="
+	cargo test -p jugar-web --test chaos -- --nocapture
+	@echo ""
+	@echo "=== PROPERTY-BASED TESTS (256 cases) ==="
+	PROPTEST_CASES=256 cargo test -p jugar-web --test proptest_game -- --nocapture
+	@echo ""
+	@echo "=== LOAD TEST EXAMPLE (ALL TIERS) ==="
+	cargo run -p jugar-web --example load_test
+	@echo ""
+	@echo "=== TRACING VALIDATION ==="
+	cargo test -p jugar-web tracer -- --nocapture
+	@echo ""
+	@echo "✅ Full load testing complete!"
+
+ai-test: ## Run Pong AI CLI tests (DDA, determinism, simulation)
+	@echo "🤖 PONG AI CLI TESTS"
+	@echo "===================="
+	@echo ""
+	@echo "  [1/3] Model info..."
+	@cargo run -p jugar-web --bin pong_ai_cli -- info
+	@echo ""
+	@echo "  [2/3] DDA tests..."
+	@cargo run -p jugar-web --bin pong_ai_cli -- test-dda
+	@echo ""
+	@echo "  [3/3] Determinism proof..."
+	@cargo run -p jugar-web --bin pong_ai_cli -- prove-determinism
+	@echo ""
+	@echo "✅ AI tests complete!"
+
+ai-simulate: ## Run AI game simulation (default: difficulty=5, rounds=100)
+	@cargo run -p jugar-web --bin pong_ai_cli -- simulate --difficulty 5 --rounds 100
+
+trace-test: ## Run tracing tests with detailed output
+	@echo "🔍 TRACING VALIDATION"
+	@echo "====================="
+	@cargo test -p jugar-web trace -- --nocapture 2>&1
+
+# ============================================================================
+# HTML/JS LINTING (ZERO JS POLICY ENFORCEMENT)
+# ============================================================================
+lint-html: ## Lint HTML files (validates ZERO JS policy)
+	@echo "📄 HTML/JS LINTING"
+	@echo "=================="
+	@echo ""
+	@echo "  [1/3] Validating HTML structure..."
+	@command -v html5validator >/dev/null 2>&1 && html5validator examples/pong-web/index.html || echo "    ⚠️  html5validator not available (pip install html5validator)"
+	@echo ""
+	@echo "  [2/3] Counting JS complexity (ZERO JS policy)..."
+	@echo "    Lines in index.html: $$(wc -l < examples/pong-web/index.html)"
+	@echo "    Functions defined: $$(grep -c 'const.*=.*(' examples/pong-web/index.html || echo 0)"
+	@echo "    Multi-line functions (should be minimal): $$(grep -c '{$$' examples/pong-web/index.html || echo 0)"
+	@echo ""
+	@echo "  [3/3] Checking for forbidden patterns..."
+	@! grep -n 'npm\|node_modules\|package\.json' examples/pong-web/index.html || (echo "    ❌ FORBIDDEN: npm/node references found!" && exit 1)
+	@! grep -n '\.js$$' examples/pong-web/index.html | grep -v 'pkg/jugar_web.js' || (echo "    ❌ FORBIDDEN: External JS files found!" && exit 1)
+	@echo "    ✅ No forbidden patterns detected"
+	@echo ""
+	@echo "✅ HTML lint complete!"
+
+lint-js-complexity: ## Analyze JS complexity in HTML (should stay minimal)
+	@echo "📊 JS COMPLEXITY ANALYSIS"
+	@echo "========================="
+	@echo ""
+	@echo "Target: ZERO JS computation - all logic in Rust/WASM"
+	@echo ""
+	@awk '/^const [a-zA-Z_]+ = \(.*\) =>/ { count++; print "  " NR ": " $$0 } END { print "\nSingle-line arrow functions: " count }' examples/pong-web/index.html
+	@echo ""
+	@awk '/^const [a-zA-Z_]+ = \(.*\) => \{/ { count++; name=$$2; print "  " NR ": " name " (multi-line)" } END { print "\nMulti-line functions: " count " (keep minimal)" }' examples/pong-web/index.html
+	@echo ""
+	@echo "Allowed multi-line: playTone (WebAudio), playAudio (dispatcher), execCmd (renderer), main (setup)"
 
 # ============================================================================
 # CLEAN

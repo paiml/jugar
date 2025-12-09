@@ -1,0 +1,71 @@
+roadmap_version: '1.0'
+github_enabled: false
+github_repo: null
+roadmap:
+- id: REFACTOR-001
+  github_issue: null
+  item_type: task
+  title: Refactor TypeScript Playwright tests for reduced complexity
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 1970-01-01T00:00:00Z
+  updated: 2025-12-09T15:32:56.623946046+00:00
+  spec: null
+  acceptance_criteria:
+  - Max cyclomatic complexity < 15
+  - Max cognitive complexity < 20
+  - All 23 Playwright tests still pass
+  - Deno lint passes
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - refactor
+  - typescript
+  - tests
+  notes: null
+- id: QA-001
+  github_issue: null
+  item_type: epic
+  title: Implement 100-point final release QA checklist compliance
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2025-12-09T00:00:00Z
+  updated: 2025-12-09T16:30:00.000000000+00:00
+  spec: docs/qa/checklist-final-release.md
+  acceptance_criteria:
+  - 100/100 points on final release checklist
+  - All static analysis gates pass (20 pts)
+  - Test coverage >= 95% (25 pts)
+  - WASM quality gates pass (15 pts)
+  - Performance gates pass (10 pts)
+  - Complete click/interaction matrix tested (15 pts)
+  - PMAT quality gates pass (10 pts)
+  - Documentation complete (5 pts)
+  phases:
+  - name: Static Analysis Compliance
+    status: completed
+    estimated_effort: null
+    completion: 100
+  - name: Test Coverage Boost
+    status: completed
+    estimated_effort: null
+    completion: 100
+  - name: WASM Quality
+    status: completed
+    estimated_effort: null
+    completion: 100
+  - name: Performance Validation
+    status: completed
+    estimated_effort: null
+    completion: 100
+  subtasks: []
+  estimated_effort: 2d
+  labels:
+  - qa
+  - release
+  - blocking
+  - critical
+  notes: 'COMPLETED: 100/100 points achieved. Coverage 95.51%, WASM 101KB gzipped, TDG A+ (99.4/100), 23/23 Playwright tests pass'

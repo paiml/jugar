@@ -60,11 +60,35 @@ pub enum AudioEvent {
         /// Volume (0.0-1.0)
         volume: f32,
     },
+    /// Sound toggle confirmation (plays when sound is enabled)
+    SoundToggle {
+        /// Whether sound is now enabled
+        enabled: bool,
+        /// Volume (0.0-1.0)
+        volume: f32,
+    },
 }
 
 /// Procedural audio generator for Pong.
 ///
 /// Generates audio events based on game state changes.
+/// Events are returned as JSON to be executed by JavaScript's Web Audio API.
+///
+/// # Example
+///
+/// ```
+/// use jugar_web::audio::ProceduralAudio;
+///
+/// let mut audio = ProceduralAudio::new();
+/// audio.set_enabled(true);
+///
+/// // Trigger a paddle hit sound (hit_y, paddle_y, paddle_height)
+/// audio.on_paddle_hit(300.0, 250.0, 100.0);
+///
+/// // Get events to send to JavaScript
+/// let events = audio.take_events();
+/// assert!(!events.is_empty());
+/// ```
 #[derive(Debug, Clone)]
 pub struct ProceduralAudio {
     /// Master volume (0.0-1.0)
@@ -230,6 +254,21 @@ impl ProceduralAudio {
             frequency,
             volume: self.master_volume,
         });
+    }
+
+    /// Generates a sound toggle confirmation sound.
+    ///
+    /// Plays a brief confirmation when sound is enabled.
+    /// This provides immediate feedback that audio is working.
+    pub fn on_sound_toggle(&mut self, enabled: bool) {
+        // Only play sound when enabling (user wants to hear it)
+        // Skip check for self.enabled since we're specifically toggling it
+        if enabled {
+            self.events.push(AudioEvent::SoundToggle {
+                enabled,
+                volume: self.master_volume,
+            });
+        }
     }
 
     /// Takes all pending audio events (clears the internal buffer).

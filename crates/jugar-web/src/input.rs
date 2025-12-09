@@ -184,12 +184,19 @@ pub const fn translate_gamepad_axis(axis: u8) -> Option<GamepadAxis> {
 
 /// Processes a batch of browser input events into InputState
 ///
+/// # Arguments
+///
+/// * `events_json` - JSON array of browser input events
+/// * `state` - InputState to update
+/// * `canvas_offset` - Offset to subtract from coordinates (converts viewport to canvas coords)
+///
 /// # Errors
 ///
 /// Returns an error if the JSON is malformed or contains invalid data.
 pub fn process_input_events(
     events_json: &str,
     state: &mut InputState,
+    canvas_offset: Vec2,
 ) -> Result<(), InputTranslationError> {
     if events_json.is_empty() || events_json == "[]" {
         return Ok(());
@@ -199,17 +206,24 @@ pub fn process_input_events(
         .map_err(|e| InputTranslationError::InvalidJson(e.to_string()))?;
 
     for event in events {
-        process_single_event(&event, state)?;
+        process_single_event(&event, state, canvas_offset)?;
     }
 
     Ok(())
 }
 
 /// Processes a single browser input event
+///
+/// # Arguments
+///
+/// * `event` - The browser input event
+/// * `state` - InputState to update
+/// * `offset` - Offset to subtract from coordinates (viewport to canvas conversion)
 #[allow(clippy::too_many_lines)]
 fn process_single_event(
     event: &BrowserInputEvent,
     state: &mut InputState,
+    offset: Vec2,
 ) -> Result<(), InputTranslationError> {
     match event.event_type.as_str() {
         "KeyDown" => {
@@ -232,13 +246,15 @@ fn process_single_event(
         "MouseMove" => {
             if let BrowserEventData::MouseMove { x, y } = &event.data {
                 let old_pos = state.mouse_position;
-                state.mouse_position = Vec2::new(*x, *y);
+                // Apply offset to convert viewport coords to canvas coords
+                state.mouse_position = Vec2::new(*x - offset.x, *y - offset.y);
                 state.mouse_delta = state.mouse_position - old_pos;
             }
         }
         "MouseDown" => {
             if let BrowserEventData::MouseButton { button, x, y } = &event.data {
-                state.mouse_position = Vec2::new(*x, *y);
+                // Apply offset to convert viewport coords to canvas coords
+                state.mouse_position = Vec2::new(*x - offset.x, *y - offset.y);
                 let idx = mouse_button_index(*button);
                 if idx < state.mouse_buttons.len() {
                     state.mouse_buttons[idx] = ButtonState::JustPressed;
@@ -247,7 +263,8 @@ fn process_single_event(
         }
         "MouseUp" => {
             if let BrowserEventData::MouseButton { button, x, y } = &event.data {
-                state.mouse_position = Vec2::new(*x, *y);
+                // Apply offset to convert viewport coords to canvas coords
+                state.mouse_position = Vec2::new(*x - offset.x, *y - offset.y);
                 let idx = mouse_button_index(*button);
                 if idx < state.mouse_buttons.len() {
                     state.mouse_buttons[idx] = ButtonState::JustReleased;
@@ -256,8 +273,10 @@ fn process_single_event(
         }
         "TouchStart" => {
             if let BrowserEventData::Touch { id, x, y } = &event.data {
+                // Apply offset to convert viewport coords to canvas coords
+                let canvas_pos = Vec2::new(*x - offset.x, *y - offset.y);
                 state.touches.push(
-                    TouchEvent::new(Vec2::new(*x, *y))
+                    TouchEvent::new(canvas_pos)
                         .with_id(*id)
                         .with_phase(TouchPhase::Started),
                 );
@@ -265,10 +284,12 @@ fn process_single_event(
         }
         "TouchMove" => {
             if let BrowserEventData::Touch { id, x, y } = &event.data {
+                // Apply offset to convert viewport coords to canvas coords
+                let canvas_pos = Vec2::new(*x - offset.x, *y - offset.y);
                 // Update existing touch or add new one
                 if let Some(touch) = state.touches.iter_mut().find(|t| t.id == *id) {
-                    touch.delta = Vec2::new(*x, *y) - touch.position;
-                    touch.position = Vec2::new(*x, *y);
+                    touch.delta = canvas_pos - touch.position;
+                    touch.position = canvas_pos;
                     touch.phase = TouchPhase::Moved;
                 }
             }
@@ -483,8 +504,8 @@ mod tests {
     #[test]
     fn test_process_empty_events() {
         let mut state = InputState::new();
-        assert!(process_input_events("", &mut state).is_ok());
-        assert!(process_input_events("[]", &mut state).is_ok());
+        assert!(process_input_events("", &mut state, Vec2::ZERO).is_ok());
+        assert!(process_input_events("[]", &mut state, Vec2::ZERO).is_ok());
     }
 
     #[test]
@@ -492,7 +513,7 @@ mod tests {
         let mut state = InputState::new();
         let events = r#"[{"event_type":"KeyDown","timestamp":0,"data":{"key":"Space"}}]"#;
 
-        assert!(process_input_events(events, &mut state).is_ok());
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
         assert!(state.key(KeyCode::Space).just_pressed());
     }
 
@@ -503,7 +524,7 @@ mod tests {
 
         let events = r#"[{"event_type":"KeyUp","timestamp":0,"data":{"key":"Space"}}]"#;
 
-        assert!(process_input_events(events, &mut state).is_ok());
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
         assert!(state.key(KeyCode::Space).just_released());
     }
 
@@ -512,7 +533,7 @@ mod tests {
         let mut state = InputState::new();
         let events = r#"[{"event_type":"MouseMove","timestamp":0,"data":{"x":100.0,"y":200.0}}]"#;
 
-        assert!(process_input_events(events, &mut state).is_ok());
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
         assert!((state.mouse_position.x - 100.0).abs() < f32::EPSILON);
         assert!((state.mouse_position.y - 200.0).abs() < f32::EPSILON);
     }
@@ -523,7 +544,7 @@ mod tests {
         let events =
             r#"[{"event_type":"MouseDown","timestamp":0,"data":{"button":0,"x":50.0,"y":60.0}}]"#;
 
-        assert!(process_input_events(events, &mut state).is_ok());
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
         assert!(state.mouse_button(MouseButton::Left).just_pressed());
         assert!((state.mouse_position.x - 50.0).abs() < f32::EPSILON);
     }
@@ -536,7 +557,7 @@ mod tests {
         let events =
             r#"[{"event_type":"MouseUp","timestamp":0,"data":{"button":0,"x":50.0,"y":60.0}}]"#;
 
-        assert!(process_input_events(events, &mut state).is_ok());
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
         assert!(state.mouse_button(MouseButton::Left).just_released());
     }
 
@@ -546,7 +567,7 @@ mod tests {
         let events =
             r#"[{"event_type":"TouchStart","timestamp":0,"data":{"id":1,"x":100.0,"y":200.0}}]"#;
 
-        assert!(process_input_events(events, &mut state).is_ok());
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
         assert_eq!(state.touches.len(), 1);
         // Note: ID is set via with_id() builder
         assert_eq!(state.touches[0].phase, TouchPhase::Started);
@@ -563,7 +584,7 @@ mod tests {
         let events =
             r#"[{"event_type":"TouchMove","timestamp":0,"data":{"id":1,"x":150.0,"y":250.0}}]"#;
 
-        assert!(process_input_events(events, &mut state).is_ok());
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
         // TouchMove should update existing touch phase
         assert_eq!(state.touches[0].phase, TouchPhase::Moved);
         assert!((state.touches[0].position.x - 150.0).abs() < f32::EPSILON);
@@ -578,7 +599,7 @@ mod tests {
 
         let events = r#"[{"event_type":"TouchEnd","timestamp":0,"data":{"id":1,"x":0.0,"y":0.0}}]"#;
 
-        assert!(process_input_events(events, &mut state).is_ok());
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
         assert_eq!(state.touches[0].phase, TouchPhase::Ended);
     }
 
@@ -588,7 +609,7 @@ mod tests {
         let events =
             r#"[{"event_type":"GamepadButtonDown","timestamp":0,"data":{"gamepad":0,"button":0}}]"#;
 
-        assert!(process_input_events(events, &mut state).is_ok());
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
         assert!(state.gamepads[0].connected);
         assert!(state.gamepads[0]
             .button(GamepadButton::South)
@@ -600,7 +621,7 @@ mod tests {
         let mut state = InputState::new();
         let events = r#"[{"event_type":"GamepadAxisMove","timestamp":0,"data":{"gamepad":0,"axis":0,"value":0.75}}]"#;
 
-        assert!(process_input_events(events, &mut state).is_ok());
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
         assert!(state.gamepads[0].connected);
         assert!((state.gamepads[0].axis(GamepadAxis::LeftStickX) - 0.75).abs() < f32::EPSILON);
     }
@@ -614,7 +635,7 @@ mod tests {
             {"event_type":"MouseMove","timestamp":2,"data":{"x":400.0,"y":300.0}}
         ]"#;
 
-        assert!(process_input_events(events, &mut state).is_ok());
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
         assert!(state.key(KeyCode::Letter('W')).just_pressed());
         assert!(state.key(KeyCode::Space).just_pressed());
         assert!((state.mouse_position.x - 400.0).abs() < f32::EPSILON);
@@ -623,7 +644,7 @@ mod tests {
     #[test]
     fn test_process_invalid_json() {
         let mut state = InputState::new();
-        let result = process_input_events("not json", &mut state);
+        let result = process_input_events("not json", &mut state, Vec2::ZERO);
         assert!(matches!(result, Err(InputTranslationError::InvalidJson(_))));
     }
 
@@ -631,11 +652,73 @@ mod tests {
     fn test_process_unknown_event_type() {
         let mut state = InputState::new();
         let events = r#"[{"event_type":"Unknown","timestamp":0,"data":{"key":"Space"}}]"#;
-        let result = process_input_events(events, &mut state);
+        let result = process_input_events(events, &mut state, Vec2::ZERO);
         assert!(matches!(
             result,
             Err(InputTranslationError::UnknownEventType(_))
         ));
+    }
+
+    // ==================== CANVAS OFFSET TESTS ====================
+
+    #[test]
+    fn test_canvas_offset_mouse_move() {
+        let mut state = InputState::new();
+        // Simulating canvas at (100, 50) in viewport
+        let canvas_offset = Vec2::new(100.0, 50.0);
+        // Raw viewport coordinates: 200, 150
+        let events = r#"[{"event_type":"MouseMove","timestamp":0,"data":{"x":200.0,"y":150.0}}]"#;
+
+        assert!(process_input_events(events, &mut state, canvas_offset).is_ok());
+        // Canvas coordinates should be: (200-100, 150-50) = (100, 100)
+        assert!((state.mouse_position.x - 100.0).abs() < f32::EPSILON);
+        assert!((state.mouse_position.y - 100.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_canvas_offset_mouse_down() {
+        let mut state = InputState::new();
+        let canvas_offset = Vec2::new(50.0, 25.0);
+        // Raw viewport coordinates: 150, 125
+        let events =
+            r#"[{"event_type":"MouseDown","timestamp":0,"data":{"button":0,"x":150.0,"y":125.0}}]"#;
+
+        assert!(process_input_events(events, &mut state, canvas_offset).is_ok());
+        // Canvas coordinates should be: (150-50, 125-25) = (100, 100)
+        assert!((state.mouse_position.x - 100.0).abs() < f32::EPSILON);
+        assert!((state.mouse_position.y - 100.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_canvas_offset_touch_start() {
+        let mut state = InputState::new();
+        let canvas_offset = Vec2::new(30.0, 40.0);
+        // Raw viewport coordinates: 130, 140
+        let events =
+            r#"[{"event_type":"TouchStart","timestamp":0,"data":{"id":1,"x":130.0,"y":140.0}}]"#;
+
+        assert!(process_input_events(events, &mut state, canvas_offset).is_ok());
+        assert_eq!(state.touches.len(), 1);
+        // Canvas coordinates should be: (130-30, 140-40) = (100, 100)
+        assert!((state.touches[0].position.x - 100.0).abs() < f32::EPSILON);
+        assert!((state.touches[0].position.y - 100.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_canvas_offset_touch_move() {
+        let mut state = InputState::new();
+        state
+            .touches
+            .push(TouchEvent::new(Vec2::new(100.0, 100.0)).with_id(1));
+
+        let canvas_offset = Vec2::new(20.0, 10.0);
+        // Raw viewport coordinates: 170, 160 -> canvas: (150, 150)
+        let events =
+            r#"[{"event_type":"TouchMove","timestamp":0,"data":{"id":1,"x":170.0,"y":160.0}}]"#;
+
+        assert!(process_input_events(events, &mut state, canvas_offset).is_ok());
+        assert!((state.touches[0].position.x - 150.0).abs() < f32::EPSILON);
+        assert!((state.touches[0].position.y - 150.0).abs() < f32::EPSILON);
     }
 
     // ==================== ERROR DISPLAY TESTS ====================
@@ -660,5 +743,264 @@ mod tests {
         assert_eq!(mouse_button_index(1), 2); // Middle (swapped)
         assert_eq!(mouse_button_index(2), 1); // Right (swapped)
         assert_eq!(mouse_button_index(3), 3); // Extra
+    }
+
+    // ==================== EDGE CASE TESTS FOR COVERAGE ====================
+
+    #[test]
+    fn test_translate_key_lowercase_letter_returns_none() {
+        // Line 115: lowercase letter keys should return None
+        assert!(translate_key("Keya").is_none());
+        assert!(translate_key("Keyz").is_none());
+    }
+
+    #[test]
+    fn test_translate_gamepad_button_stick_buttons() {
+        // Lines 163-164: LeftStick and RightStick buttons
+        assert_eq!(translate_gamepad_button(10), Some(GamepadButton::LeftStick));
+        assert_eq!(
+            translate_gamepad_button(11),
+            Some(GamepadButton::RightStick)
+        );
+    }
+
+    #[test]
+    fn test_key_down_unknown_key_does_not_set_state() {
+        // Lines 236-237: when translate_key returns None, nothing is set
+        let mut state = InputState::new();
+        let events = r#"[{"event_type":"KeyDown","timestamp":0,"data":{"key":"UnknownKey"}}]"#;
+
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
+        // No keys should be pressed since "UnknownKey" is not recognized
+        assert!(!state.key(KeyCode::Space).is_down());
+    }
+
+    #[test]
+    fn test_key_down_already_pressed_no_double_just_pressed() {
+        // When key is already down, don't set JustPressed again
+        let mut state = InputState::new();
+        state.set_key(KeyCode::Space, ButtonState::Pressed);
+
+        let events = r#"[{"event_type":"KeyDown","timestamp":0,"data":{"key":"Space"}}]"#;
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
+
+        // Should still be Pressed (not JustPressed), since it was already down
+        assert!(state.key(KeyCode::Space).is_down());
+    }
+
+    // ==================== TOUCH EVENT COVERAGE ====================
+
+    #[test]
+    fn test_touch_end_sets_ended_phase() {
+        let mut state = InputState::new();
+        state
+            .touches
+            .push(TouchEvent::new(Vec2::new(100.0, 100.0)).with_id(5));
+
+        let events =
+            r#"[{"event_type":"TouchEnd","timestamp":0,"data":{"id":5,"x":100.0,"y":100.0}}]"#;
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
+
+        assert_eq!(state.touches[0].phase, TouchPhase::Ended);
+    }
+
+    #[test]
+    fn test_touch_cancel_sets_cancelled_phase() {
+        let mut state = InputState::new();
+        state
+            .touches
+            .push(TouchEvent::new(Vec2::new(100.0, 100.0)).with_id(7));
+
+        let events =
+            r#"[{"event_type":"TouchCancel","timestamp":0,"data":{"id":7,"x":100.0,"y":100.0}}]"#;
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
+
+        assert_eq!(state.touches[0].phase, TouchPhase::Cancelled);
+    }
+
+    // ==================== MOUSE UP COVERAGE ====================
+
+    #[test]
+    fn test_mouse_up_event() {
+        let mut state = InputState::new();
+        state.mouse_buttons[0] = ButtonState::Pressed;
+
+        let events =
+            r#"[{"event_type":"MouseUp","timestamp":0,"data":{"button":0,"x":150.0,"y":200.0}}]"#;
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
+
+        assert_eq!(state.mouse_buttons[0], ButtonState::JustReleased);
+        assert!((state.mouse_position.x - 150.0).abs() < f32::EPSILON);
+        assert!((state.mouse_position.y - 200.0).abs() < f32::EPSILON);
+    }
+
+    // ==================== GAMEPAD CONNECTION COVERAGE ====================
+
+    #[test]
+    fn test_gamepad_connected_event() {
+        let mut state = InputState::new();
+        assert!(!state.gamepads[0].connected);
+
+        let events =
+            r#"[{"event_type":"GamepadConnected","timestamp":0,"data":{"gamepad":0,"button":0}}]"#;
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
+
+        assert!(state.gamepads[0].connected);
+    }
+
+    #[test]
+    fn test_gamepad_disconnected_event() {
+        let mut state = InputState::new();
+        state.gamepads[0].connected = true;
+
+        let events = r#"[{"event_type":"GamepadDisconnected","timestamp":0,"data":{"gamepad":0,"button":0}}]"#;
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
+
+        assert!(!state.gamepads[0].connected);
+    }
+
+    #[test]
+    fn test_gamepad_button_up_event() {
+        let mut state = InputState::new();
+        state.gamepads[0].buttons[0] = ButtonState::Pressed;
+
+        let events =
+            r#"[{"event_type":"GamepadButtonUp","timestamp":0,"data":{"gamepad":0,"button":0}}]"#;
+        assert!(process_input_events(events, &mut state, Vec2::ZERO).is_ok());
+
+        assert_eq!(state.gamepads[0].buttons[0], ButtonState::JustReleased);
+    }
+}
+
+// ==================== PROPERTY-BASED TESTS ====================
+
+#[cfg(test)]
+#[allow(clippy::uninlined_format_args)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        /// Property: Canvas offset subtraction is linear and reversible
+        #[test]
+        fn property_canvas_offset_linear(
+            viewport_x in 0.0f32..2000.0,
+            viewport_y in 0.0f32..2000.0,
+            offset_x in 0.0f32..500.0,
+            offset_y in 0.0f32..500.0,
+        ) {
+            let mut state = InputState::new();
+            let canvas_offset = Vec2::new(offset_x, offset_y);
+            let events = format!(
+                r#"[{{"event_type":"MouseMove","timestamp":0,"data":{{"x":{},"y":{}}}}}]"#,
+                viewport_x, viewport_y
+            );
+
+            let result = process_input_events(&events, &mut state, canvas_offset);
+            prop_assert!(result.is_ok());
+
+            // Canvas coords = viewport coords - offset
+            let expected_x = viewport_x - offset_x;
+            let expected_y = viewport_y - offset_y;
+            prop_assert!((state.mouse_position.x - expected_x).abs() < 0.001);
+            prop_assert!((state.mouse_position.y - expected_y).abs() < 0.001);
+        }
+
+        /// Property: Zero offset preserves coordinates exactly
+        #[test]
+        fn property_zero_offset_identity(
+            x in 0.0f32..2000.0,
+            y in 0.0f32..2000.0,
+        ) {
+            let mut state = InputState::new();
+            let events = format!(
+                r#"[{{"event_type":"MouseDown","timestamp":0,"data":{{"button":0,"x":{},"y":{}}}}}]"#,
+                x, y
+            );
+
+            let result = process_input_events(&events, &mut state, Vec2::ZERO);
+            prop_assert!(result.is_ok());
+            prop_assert!((state.mouse_position.x - x).abs() < 0.001);
+            prop_assert!((state.mouse_position.y - y).abs() < 0.001);
+        }
+
+        /// Property: Touch coordinates also get offset applied
+        #[test]
+        fn property_touch_offset_applied(
+            viewport_x in 0.0f32..2000.0,
+            viewport_y in 0.0f32..2000.0,
+            offset_x in 0.0f32..500.0,
+            offset_y in 0.0f32..500.0,
+            touch_id in 0u32..100,
+        ) {
+            let mut state = InputState::new();
+            let canvas_offset = Vec2::new(offset_x, offset_y);
+            let events = format!(
+                r#"[{{"event_type":"TouchStart","timestamp":0,"data":{{"id":{},"x":{},"y":{}}}}}]"#,
+                touch_id, viewport_x, viewport_y
+            );
+
+            let result = process_input_events(&events, &mut state, canvas_offset);
+            prop_assert!(result.is_ok());
+            prop_assert_eq!(state.touches.len(), 1);
+
+            let expected_x = viewport_x - offset_x;
+            let expected_y = viewport_y - offset_y;
+            prop_assert!((state.touches[0].position.x - expected_x).abs() < 0.001);
+            prop_assert!((state.touches[0].position.y - expected_y).abs() < 0.001);
+        }
+
+        /// Property: Negative canvas coordinates are valid (canvas not at 0,0)
+        #[test]
+        fn property_negative_coords_valid(
+            viewport_x in 0.0f32..100.0,
+            viewport_y in 0.0f32..100.0,
+            offset_x in 100.0f32..500.0,
+            offset_y in 100.0f32..500.0,
+        ) {
+            let mut state = InputState::new();
+            let canvas_offset = Vec2::new(offset_x, offset_y);
+            let events = format!(
+                r#"[{{"event_type":"MouseMove","timestamp":0,"data":{{"x":{},"y":{}}}}}]"#,
+                viewport_x, viewport_y
+            );
+
+            let result = process_input_events(&events, &mut state, canvas_offset);
+            prop_assert!(result.is_ok());
+
+            // Result should be negative (clicked outside canvas area)
+            prop_assert!(state.mouse_position.x < 0.0);
+            prop_assert!(state.mouse_position.y < 0.0);
+        }
+
+        /// Property: Multiple mouse events maintain offset consistency
+        #[test]
+        fn property_multiple_events_consistent_offset(
+            x1 in 0.0f32..1000.0,
+            y1 in 0.0f32..1000.0,
+            x2 in 0.0f32..1000.0,
+            y2 in 0.0f32..1000.0,
+            offset_x in 0.0f32..200.0,
+            offset_y in 0.0f32..200.0,
+        ) {
+            let mut state = InputState::new();
+            let canvas_offset = Vec2::new(offset_x, offset_y);
+            let events = format!(
+                r#"[
+                    {{"event_type":"MouseDown","timestamp":0,"data":{{"button":0,"x":{},"y":{}}}}},
+                    {{"event_type":"MouseMove","timestamp":1,"data":{{"x":{},"y":{}}}}}
+                ]"#,
+                x1, y1, x2, y2
+            );
+
+            let result = process_input_events(&events, &mut state, canvas_offset);
+            prop_assert!(result.is_ok());
+
+            // Final position should be last event with offset applied
+            let expected_x = x2 - offset_x;
+            let expected_y = y2 - offset_y;
+            prop_assert!((state.mouse_position.x - expected_x).abs() < 0.001);
+            prop_assert!((state.mouse_position.y - expected_y).abs() < 0.001);
+        }
     }
 }

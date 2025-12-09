@@ -29,6 +29,10 @@ trueno = { workspace = true }
 name = "generate_pong_ai"
 path = "src/bin/generate_pong_ai.rs"
 
+[[example]]
+name = "load_test"
+path = "examples/load_test.rs"
+
 [dev-dependencies]
 proptest = { workspace = true }
 
