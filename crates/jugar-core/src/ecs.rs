@@ -450,7 +450,13 @@ mod tests {
         }
 
         let pos = world.get_component::<Position>(e).unwrap();
-        assert!((pos.x - 10.0).abs() < f32::EPSILON, "X should move by velocity");
-        assert!((pos.y - 5.0).abs() < f32::EPSILON, "Y should move by velocity");
+        assert!(
+            (pos.x - 10.0).abs() < f32::EPSILON,
+            "X should move by velocity"
+        );
+        assert!(
+            (pos.y - 5.0).abs() < f32::EPSILON,
+            "Y should move by velocity"
+        );
     }
 }

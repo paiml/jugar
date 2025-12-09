@@ -74,7 +74,9 @@ pub mod prelude {
     pub use jugar_audio::{AudioChannel, AudioHandle, AudioListener, AudioSystem, SoundSource};
 
     // AI
-    pub use jugar_ai::{Action, BehaviorNode, Goal, NodeStatus, Planner, Selector, Sequence, WorldState};
+    pub use jugar_ai::{
+        Action, BehaviorNode, Goal, NodeStatus, Planner, Selector, Sequence, WorldState,
+    };
 
     // Procgen
     pub use jugar_procgen::{

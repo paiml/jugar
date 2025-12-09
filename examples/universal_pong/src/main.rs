@@ -127,7 +127,10 @@ impl PongGame {
         match self.state {
             PongState::Ready => {
                 if engine.input().key(KeyCode::Space).just_pressed()
-                    || engine.input().mouse_button(MouseButton::Left).just_pressed()
+                    || engine
+                        .input()
+                        .mouse_button(MouseButton::Left)
+                        .just_pressed()
                     || !engine.input().touches.is_empty()
                 {
                     self.state = PongState::Playing;
@@ -495,10 +498,7 @@ mod tests {
         let game = PongGame::new(&mut engine);
 
         // Move ball
-        if let Some(pos) = engine
-            .world_mut()
-            .get_component_mut::<Position>(game.ball)
-        {
+        if let Some(pos) = engine.world_mut().get_component_mut::<Position>(game.ball) {
             pos.x = 100.0;
             pos.y = 50.0;
         }
@@ -507,10 +507,7 @@ mod tests {
         game.reset_ball(engine.world_mut());
 
         // Check ball is at center
-        let ball_pos = engine
-            .world()
-            .get_component::<Position>(game.ball)
-            .unwrap();
+        let ball_pos = engine.world().get_component::<Position>(game.ball).unwrap();
         assert!((ball_pos.x).abs() < f32::EPSILON);
         assert!((ball_pos.y).abs() < f32::EPSILON);
     }
