@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Input errors
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum InputError {
     /// Invalid gamepad index
     #[error("Gamepad {0} not connected")]
@@ -108,7 +108,7 @@ pub struct TouchEvent {
 impl TouchEvent {
     /// Creates a new touch event
     #[must_use]
-    pub fn new(position: Vec2) -> Self {
+    pub const fn new(position: Vec2) -> Self {
         Self {
             id: 0,
             position,
@@ -174,13 +174,13 @@ pub enum KeyCode {
 /// Gamepad button
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GamepadButton {
-    /// A button (Xbox) / Cross (PlayStation)
+    /// A button (Xbox) / Cross (`PlayStation`)
     South,
-    /// B button (Xbox) / Circle (PlayStation)
+    /// B button (Xbox) / Circle (`PlayStation`)
     East,
-    /// X button (Xbox) / Square (PlayStation)
+    /// X button (Xbox) / Square (`PlayStation`)
     West,
-    /// Y button (Xbox) / Triangle (PlayStation)
+    /// Y button (Xbox) / Triangle (`PlayStation`)
     North,
     /// Left bumper/shoulder
     LeftBumper,
@@ -235,7 +235,7 @@ pub struct GamepadState {
 impl GamepadState {
     /// Gets a button state
     #[must_use]
-    pub fn button(&self, button: GamepadButton) -> ButtonState {
+    pub const fn button(&self, button: GamepadButton) -> ButtonState {
         let idx = button as usize;
         if idx < self.buttons.len() {
             self.buttons[idx]
@@ -246,7 +246,7 @@ impl GamepadState {
 
     /// Gets an axis value
     #[must_use]
-    pub fn axis(&self, axis: GamepadAxis) -> f32 {
+    pub const fn axis(&self, axis: GamepadAxis) -> f32 {
         let idx = axis as usize;
         if idx < self.axes.len() {
             self.axes[idx]
@@ -257,7 +257,7 @@ impl GamepadState {
 
     /// Gets left stick as a Vec2
     #[must_use]
-    pub fn left_stick(&self) -> Vec2 {
+    pub const fn left_stick(&self) -> Vec2 {
         Vec2::new(
             self.axis(GamepadAxis::LeftStickX),
             self.axis(GamepadAxis::LeftStickY),
@@ -266,7 +266,7 @@ impl GamepadState {
 
     /// Gets right stick as a Vec2
     #[must_use]
-    pub fn right_stick(&self) -> Vec2 {
+    pub const fn right_stick(&self) -> Vec2 {
         Vec2::new(
             self.axis(GamepadAxis::RightStickX),
             self.axis(GamepadAxis::RightStickY),
@@ -300,7 +300,7 @@ impl InputState {
 
     /// Gets mouse button state
     #[must_use]
-    pub fn mouse_button(&self, button: MouseButton) -> ButtonState {
+    pub const fn mouse_button(&self, button: MouseButton) -> ButtonState {
         let idx = match button {
             MouseButton::Left => 0,
             MouseButton::Right => 1,
@@ -331,13 +331,16 @@ impl InputState {
     /// Gets primary touch (or mouse as touch)
     #[must_use]
     pub fn primary_pointer(&self) -> Option<Vec2> {
-        if let Some(touch) = self.touches.first() {
-            Some(touch.position)
-        } else if self.mouse_button(MouseButton::Left).is_down() {
-            Some(self.mouse_position)
-        } else {
-            None
-        }
+        self.touches
+            .first()
+            .map(|touch| touch.position)
+            .or_else(|| {
+                if self.mouse_button(MouseButton::Left).is_down() {
+                    Some(self.mouse_position)
+                } else {
+                    None
+                }
+            })
     }
 
     /// Checks if there's any input this frame
@@ -372,7 +375,7 @@ impl InputState {
 }
 
 /// Action binding for input abstraction
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InputAction {
     /// Action name
     pub name: String,

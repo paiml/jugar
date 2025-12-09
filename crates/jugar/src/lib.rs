@@ -28,7 +28,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-use std::fmt;
+use core::fmt;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -88,7 +88,7 @@ pub mod prelude {
 }
 
 /// Jugar engine errors
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum JugarError {
     /// Initialization error
     #[error("Initialization failed: {0}")]
@@ -99,7 +99,7 @@ pub enum JugarError {
 }
 
 /// Result type for Jugar operations
-pub type Result<T> = std::result::Result<T, JugarError>;
+pub type Result<T> = core::result::Result<T, JugarError>;
 
 /// Engine configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -267,19 +267,19 @@ impl JugarEngine {
 
     /// Gets the configuration
     #[must_use]
-    pub fn config(&self) -> &JugarConfig {
+    pub const fn config(&self) -> &JugarConfig {
         &self.config
     }
 
     /// Gets the current time
     #[must_use]
-    pub fn time(&self) -> &Time {
+    pub const fn time(&self) -> &Time {
         &self.time
     }
 
     /// Gets the viewport
     #[must_use]
-    pub fn viewport(&self) -> &render::Viewport {
+    pub const fn viewport(&self) -> &render::Viewport {
         &self.viewport
     }
 
@@ -290,7 +290,7 @@ impl JugarEngine {
 
     /// Gets the input state
     #[must_use]
-    pub fn input(&self) -> &input::InputState {
+    pub const fn input(&self) -> &input::InputState {
         &self.input
     }
 
@@ -301,7 +301,7 @@ impl JugarEngine {
 
     /// Gets the audio system
     #[must_use]
-    pub fn audio(&self) -> &audio::AudioSystem {
+    pub const fn audio(&self) -> &audio::AudioSystem {
         &self.audio
     }
 
@@ -312,7 +312,7 @@ impl JugarEngine {
 
     /// Gets the ECS world
     #[must_use]
-    pub fn world(&self) -> &jugar_core::World {
+    pub const fn world(&self) -> &jugar_core::World {
         &self.world
     }
 
@@ -323,7 +323,7 @@ impl JugarEngine {
 
     /// Gets the physics world
     #[must_use]
-    pub fn physics(&self) -> &physics::PhysicsWorld {
+    pub const fn physics(&self) -> &physics::PhysicsWorld {
         &self.physics
     }
 
@@ -334,7 +334,7 @@ impl JugarEngine {
 
     /// Gets the UI container
     #[must_use]
-    pub fn ui(&self) -> &ui::UiContainer {
+    pub const fn ui(&self) -> &ui::UiContainer {
         &self.ui
     }
 
@@ -345,7 +345,7 @@ impl JugarEngine {
 
     /// Gets the game loop
     #[must_use]
-    pub fn game_loop(&self) -> &jugar_core::GameLoop {
+    pub const fn game_loop(&self) -> &jugar_core::GameLoop {
         &self.game_loop
     }
 
@@ -437,7 +437,7 @@ impl fmt::Debug for JugarEngine {
             .field("time", &self.time)
             .field("running", &self.running)
             .field("physics_backend", &self.physics.backend())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -460,7 +460,11 @@ pub fn create_ultrawide_game() -> JugarEngine {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::field_reassign_with_default
+)]
 mod tests {
     use super::*;
 

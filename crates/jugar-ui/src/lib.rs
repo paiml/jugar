@@ -12,7 +12,7 @@ use thiserror::Error;
 use jugar_core::{Anchor, Rect, ScaleMode, UiElement};
 
 /// UI system errors
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum UiError {
     /// Widget not found
     #[error("Widget '{0}' not found")]
@@ -44,7 +44,7 @@ pub struct UiContainer {
 impl UiContainer {
     /// Creates a new UI container
     #[must_use]
-    pub fn new(viewport_width: f32, viewport_height: f32) -> Self {
+    pub const fn new(viewport_width: f32, viewport_height: f32) -> Self {
         Self {
             widgets: Vec::new(),
             viewport_size: Vec2::new(viewport_width, viewport_height),
@@ -106,8 +106,8 @@ impl UiContainer {
 
         let (ax, ay) = element.anchor.normalized();
         Vec2::new(
-            self.viewport_size.x * ax + element.offset.x * scale,
-            self.viewport_size.y * ay + element.offset.y * scale,
+            self.viewport_size.x.mul_add(ax, element.offset.x * scale),
+            self.viewport_size.y.mul_add(ay, element.offset.y * scale),
         )
     }
 
@@ -124,8 +124,8 @@ impl UiContainer {
         let (ax, ay) = element.anchor.normalized();
 
         Rect::new(
-            pos.x - scaled_size.x * ax,
-            pos.y - scaled_size.y * ay,
+            scaled_size.x.mul_add(-ax, pos.x),
+            scaled_size.y.mul_add(-ay, pos.y),
             scaled_size.x,
             scaled_size.y,
         )
@@ -199,14 +199,14 @@ impl Button {
 
     /// Sets the anchor
     #[must_use]
-    pub fn with_anchor(mut self, anchor: Anchor) -> Self {
+    pub const fn with_anchor(mut self, anchor: Anchor) -> Self {
         self.element = self.element.with_anchor(anchor);
         self
     }
 
     /// Sets the offset
     #[must_use]
-    pub fn with_offset(mut self, offset: Vec2) -> Self {
+    pub const fn with_offset(mut self, offset: Vec2) -> Self {
         self.element = self.element.with_offset(offset);
         self
     }
@@ -251,7 +251,7 @@ impl Label {
 
     /// Sets the anchor
     #[must_use]
-    pub fn with_anchor(mut self, anchor: Anchor) -> Self {
+    pub const fn with_anchor(mut self, anchor: Anchor) -> Self {
         self.element = self.element.with_anchor(anchor);
         self
     }

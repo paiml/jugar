@@ -223,6 +223,7 @@ impl GameLoop {
 
         // Count physics ticks
         let mut ticks = 0u32;
+        #[allow(clippy::while_float)]
         while self.state.accumulator >= self.config.fixed_dt {
             self.state.accumulator -= self.config.fixed_dt;
             self.state.tick_count += 1;
@@ -261,9 +262,10 @@ impl fmt::Debug for GameLoop {
 }
 
 /// Game state machine for managing game modes
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum GameState {
     /// Initial loading state
+    #[default]
     Loading,
     /// Main menu
     Menu,
@@ -292,26 +294,14 @@ impl GameState {
     ///
     /// Returns true if the transition is valid.
     #[must_use]
-    pub fn can_transition_to(&self, target: &Self) -> bool {
-        match (self, target) {
-            // Loading can go to Menu
-            (Self::Loading, Self::Menu) => true,
-            // Menu can start or exit
-            (Self::Menu, Self::Playing | Self::Loading) => true,
-            // Playing can pause or end
-            (Self::Playing, Self::Paused | Self::GameOver | Self::Menu) => true,
-            // Paused can resume or quit
-            (Self::Paused, Self::Playing | Self::Menu) => true,
-            // Game over can restart or return to menu
-            (Self::GameOver, Self::Playing | Self::Menu) => true,
-            _ => false,
-        }
-    }
-}
-
-impl Default for GameState {
-    fn default() -> Self {
-        Self::Loading
+    pub const fn can_transition_to(&self, target: &Self) -> bool {
+        matches!(
+            (self, target),
+            (Self::Loading, Self::Menu)
+                | (Self::Menu, Self::Playing | Self::Loading)
+                | (Self::Playing, Self::Paused | Self::GameOver | Self::Menu)
+                | (Self::Paused | Self::GameOver, Self::Playing | Self::Menu)
+        )
     }
 }
 
@@ -328,7 +318,12 @@ impl fmt::Display for GameState {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::let_underscore_must_use,
+    clippy::cast_precision_loss
+)]
 mod tests {
     use super::*;
 
@@ -364,7 +359,7 @@ mod tests {
         let fixed_dt = game_loop.fixed_dt();
 
         // First frame
-        game_loop.update(0.0);
+        let _ = game_loop.update(0.0);
 
         // Frame at 2x fixed_dt - should run 2 physics ticks
         let result = game_loop.update(fixed_dt * 2.0);
@@ -376,8 +371,8 @@ mod tests {
         let mut game_loop = GameLoop::new(GameLoopConfig::default_60fps());
         let fixed_dt = game_loop.fixed_dt();
 
-        game_loop.update(0.0);
-        game_loop.update(fixed_dt * 1.5);
+        let _ = game_loop.update(0.0);
+        let _ = game_loop.update(fixed_dt * 1.5);
 
         // Should have run 1 tick with 0.5*fixed_dt remaining
         let alpha = game_loop.alpha();
@@ -395,7 +390,7 @@ mod tests {
             target_fps: 0,
         });
 
-        game_loop.update(0.0);
+        let _ = game_loop.update(0.0);
 
         // Huge time jump should be clamped
         let result = game_loop.update(10.0);
@@ -407,8 +402,8 @@ mod tests {
     #[test]
     fn test_game_loop_reset() {
         let mut game_loop = GameLoop::default();
-        game_loop.update(0.0);
-        game_loop.update(1.0);
+        let _ = game_loop.update(0.0);
+        let _ = game_loop.update(1.0);
 
         game_loop.reset();
 
@@ -421,7 +416,7 @@ mod tests {
         let mut game_loop = GameLoop::default();
 
         for i in 0..10 {
-            game_loop.update(i as f32 * 0.016);
+            let _ = game_loop.update(i as f32 * 0.016);
         }
 
         assert_eq!(game_loop.state().frame_count(), 10);
@@ -479,7 +474,7 @@ mod tests {
         let mut game_loop = GameLoop::new(config);
 
         // First frame
-        game_loop.update(0.0);
+        let _ = game_loop.update(0.0);
 
         // After 0.35 seconds, should have 3 ticks (0.1, 0.2, 0.3) with 0.05 remaining
         let result = game_loop.update(0.35);
@@ -505,15 +500,15 @@ mod tests {
         };
         let mut game_loop = GameLoop::new(config);
 
-        game_loop.update(0.0);
-        game_loop.update(0.15); // 1 tick, 0.05 remaining
+        let _ = game_loop.update(0.0);
+        let _ = game_loop.update(0.15); // 1 tick, 0.05 remaining
 
         let alpha = game_loop.alpha();
 
         // Simulate position interpolation
-        let prev_pos = 0.0;
-        let curr_pos = 10.0;
-        let interpolated = prev_pos + (curr_pos - prev_pos) * alpha;
+        let prev_pos: f32 = 0.0;
+        let curr_pos: f32 = 10.0;
+        let interpolated = (curr_pos - prev_pos).mul_add(alpha, prev_pos);
 
         assert!(
             (interpolated - 5.0).abs() < 0.1,

@@ -216,12 +216,16 @@ impl fmt::Debug for World {
         f.debug_struct("World")
             .field("entity_count", &self.entities.len())
             .field("component_types", &self.components.len())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::let_underscore_must_use
+)]
 mod tests {
     use super::*;
     use crate::components::{Position, Velocity};
@@ -259,9 +263,9 @@ mod tests {
     fn test_entity_hash() {
         use std::collections::HashSet;
         let mut set = HashSet::new();
-        set.insert(Entity::new(1));
-        set.insert(Entity::new(2));
-        set.insert(Entity::new(1)); // Duplicate
+        let _ = set.insert(Entity::new(1));
+        let _ = set.insert(Entity::new(2));
+        let _ = set.insert(Entity::new(1)); // Duplicate
         assert_eq!(set.len(), 2);
     }
 
@@ -284,11 +288,11 @@ mod tests {
         let mut world = World::new();
         assert_eq!(world.entity_count(), 0);
 
-        world.spawn();
+        let _ = world.spawn();
         assert_eq!(world.entity_count(), 1);
 
-        world.spawn();
-        world.spawn();
+        let _ = world.spawn();
+        let _ = world.spawn();
         assert_eq!(world.entity_count(), 3);
     }
 

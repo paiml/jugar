@@ -12,7 +12,7 @@ use thiserror::Error;
 use jugar_core::{Anchor, Camera, Position, Rect, ScaleMode};
 
 /// Rendering errors
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum RenderError {
     /// Invalid viewport dimensions
     #[error("Invalid viewport: {width}x{height}")]
@@ -28,13 +28,14 @@ pub enum RenderError {
 pub type Result<T> = core::result::Result<T, RenderError>;
 
 /// Aspect ratio presets
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum AspectRatio {
     /// Mobile portrait (9:16)
     MobilePortrait,
     /// Mobile landscape (16:9)
     MobileLandscape,
     /// Desktop standard (16:9)
+    #[default]
     Standard,
     /// Ultrawide (21:9)
     Ultrawide,
@@ -72,12 +73,6 @@ impl AspectRatio {
         } else {
             Self::Custom(width as f32, height as f32)
         }
-    }
-}
-
-impl Default for AspectRatio {
-    fn default() -> Self {
-        Self::Standard
     }
 }
 
@@ -132,8 +127,8 @@ impl Viewport {
     pub fn world_to_screen(&self, world_pos: Vec2, camera: &Camera) -> Vec2 {
         let center = Vec2::new(self.width as f32 / 2.0, self.height as f32 / 2.0);
         Vec2::new(
-            center.x + (world_pos.x - camera.position.x) * camera.zoom,
-            center.y - (world_pos.y - camera.position.y) * camera.zoom,
+            (world_pos.x - camera.position.x).mul_add(camera.zoom, center.x),
+            (world_pos.y - camera.position.y).mul_add(-camera.zoom, center.y),
         )
     }
 
@@ -264,14 +259,13 @@ pub fn calculate_anchored_position(
     // Apply scaling based on mode
     let scale = match scale_mode {
         ScaleMode::Adaptive => vh.min(vw) / 1080.0, // Scale based on shortest dimension
-        ScaleMode::PixelPerfect => 1.0,
-        ScaleMode::Fixed => 1.0,
+        ScaleMode::PixelPerfect | ScaleMode::Fixed => 1.0,
     };
 
     // Calculate final position (centered on anchor point)
     Vec2::new(
-        base_x + offset.x * scale - element_size.x * scale * ax,
-        base_y + offset.y * scale - element_size.y * scale * ay,
+        (element_size.x * scale).mul_add(-ax, offset.x.mul_add(scale, base_x)),
+        (element_size.y * scale).mul_add(-ay, offset.y.mul_add(scale, base_y)),
     )
 }
 

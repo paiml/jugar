@@ -47,7 +47,7 @@ impl Position {
     pub fn distance_to(self, other: Self) -> f32 {
         let dx = other.x - self.x;
         let dy = other.y - self.y;
-        (dx * dx + dy * dy).sqrt()
+        dx.hypot(dy)
     }
 }
 
@@ -88,7 +88,7 @@ impl Velocity {
     /// Returns the speed (magnitude)
     #[must_use]
     pub fn speed(self) -> f32 {
-        (self.x * self.x + self.y * self.y).sqrt()
+        self.x.hypot(self.y)
     }
 
     /// Normalizes the velocity to unit length, or returns zero if magnitude is zero
@@ -166,12 +166,11 @@ impl Anchor {
             Self::TopCenter => (0.5, 0.0),
             Self::TopRight => (1.0, 0.0),
             Self::MiddleLeft => (0.0, 0.5),
-            Self::Center => (0.5, 0.5),
+            Self::Center | Self::Stretch => (0.5, 0.5),
             Self::MiddleRight => (1.0, 0.5),
             Self::BottomLeft => (0.0, 1.0),
             Self::BottomCenter => (0.5, 1.0),
             Self::BottomRight => (1.0, 1.0),
-            Self::Stretch => (0.5, 0.5), // Center for stretch
         }
     }
 }
@@ -225,7 +224,7 @@ pub struct UiElement {
 impl UiElement {
     /// Creates a new UI element with default settings
     #[must_use]
-    pub fn new(size: Vec2) -> Self {
+    pub const fn new(size: Vec2) -> Self {
         Self {
             anchor: Anchor::Center,
             offset: Vec2::ZERO,
@@ -269,8 +268,8 @@ impl UiElement {
     pub fn calculate_position(&self, container_size: Vec2) -> Vec2 {
         let (ax, ay) = self.anchor.normalized();
         Vec2::new(
-            container_size.x * ax + self.offset.x,
-            container_size.y * ay + self.offset.y,
+            container_size.x.mul_add(ax, self.offset.x),
+            container_size.y.mul_add(ay, self.offset.y),
         )
     }
 }
@@ -299,7 +298,7 @@ pub struct Camera {
 impl Camera {
     /// Creates a new camera with default settings
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             zoom: 1.0,
             target_resolution: None,
@@ -311,7 +310,7 @@ impl Camera {
 
     /// Creates a camera for pixel art with fixed resolution
     #[must_use]
-    pub fn pixel_art(width: f32, height: f32) -> Self {
+    pub const fn pixel_art(width: f32, height: f32) -> Self {
         Self {
             zoom: 1.0,
             target_resolution: Some(Vec2::new(width, height)),

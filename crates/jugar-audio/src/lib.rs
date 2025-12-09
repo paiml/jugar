@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Audio system errors
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum AudioError {
     /// Audio source not found
     #[error("Audio source '{0}' not found")]
@@ -34,24 +34,19 @@ pub type Result<T> = core::result::Result<T, AudioError>;
 pub struct AudioHandle(pub u32);
 
 /// Audio channel for mixing
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum AudioChannel {
     /// Master channel (affects all)
     Master,
     /// Music channel
     Music,
     /// Sound effects channel
+    #[default]
     Effects,
     /// Voice/Dialog channel
     Voice,
     /// Ambient sounds channel
     Ambient,
-}
-
-impl Default for AudioChannel {
-    fn default() -> Self {
-        Self::Effects
-    }
 }
 
 /// Audio playback state
@@ -174,7 +169,7 @@ pub struct AudioListener {
 impl AudioListener {
     /// Creates a new listener at the origin
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             position: Vec2::ZERO,
             direction: Vec2::new(0.0, 1.0), // Facing up
@@ -284,7 +279,7 @@ pub struct PlayingSound {
 impl PlayingSound {
     /// Creates a new playing sound
     #[must_use]
-    pub fn new(handle: AudioHandle, source: SoundSource) -> Self {
+    pub const fn new(handle: AudioHandle, source: SoundSource) -> Self {
         Self {
             handle,
             source,
@@ -323,7 +318,7 @@ impl AudioSystem {
 
     /// Gets the listener
     #[must_use]
-    pub fn listener(&self) -> &AudioListener {
+    pub const fn listener(&self) -> &AudioListener {
         &self.listener
     }
 
@@ -339,7 +334,7 @@ impl AudioSystem {
 
     /// Gets channel volumes
     #[must_use]
-    pub fn volumes(&self) -> &ChannelVolumes {
+    pub const fn volumes(&self) -> &ChannelVolumes {
         &self.volumes
     }
 
@@ -417,6 +412,7 @@ impl AudioSystem {
 
                 // Handle looping
                 if playing.source.looping && playing.duration > 0.0 {
+                    #[allow(clippy::while_float)]
                     while playing.time >= playing.duration {
                         playing.time -= playing.duration;
                     }
@@ -480,7 +476,7 @@ impl fmt::Debug for AudioSystem {
         f.debug_struct("AudioSystem")
             .field("playing_count", &self.playing_count())
             .field("listener", &self.listener)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -566,9 +562,11 @@ mod tests {
 
     #[test]
     fn test_channel_volumes_get() {
-        let mut volumes = ChannelVolumes::default();
-        volumes.master = 0.5;
-        volumes.effects = 0.8;
+        let volumes = ChannelVolumes {
+            master: 0.5,
+            effects: 0.8,
+            ..ChannelVolumes::default()
+        };
 
         let final_vol = volumes.get(AudioChannel::Effects);
         assert!((final_vol - 0.4).abs() < f32::EPSILON);
@@ -668,8 +666,8 @@ mod tests {
     #[test]
     fn test_audio_system_stop_all() {
         let mut system = AudioSystem::new();
-        system.play(SoundSource::new("test1"));
-        system.play(SoundSource::new("test2"));
+        let _ = system.play(SoundSource::new("test1"));
+        let _ = system.play(SoundSource::new("test2"));
 
         assert_eq!(system.playing_count(), 2);
 
