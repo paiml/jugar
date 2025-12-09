@@ -11,14 +11,14 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-jugar-core = { path = "../jugar-core" }
-jugar-physics = { path = "../jugar-physics" }
-jugar-ai = { path = "../jugar-ai" }
-jugar-render = { path = "../jugar-render" }
-jugar-ui = { path = "../jugar-ui" }
-jugar-input = { path = "../jugar-input" }
-jugar-audio = { path = "../jugar-audio" }
-jugar-procgen = { path = "../jugar-procgen" }
+jugar-core = { version = "0.1", path = "../jugar-core" }
+jugar-physics = { version = "0.1", path = "../jugar-physics" }
+jugar-ai = { version = "0.1", path = "../jugar-ai" }
+jugar-render = { version = "0.1", path = "../jugar-render" }
+jugar-ui = { version = "0.1", path = "../jugar-ui" }
+jugar-input = { version = "0.1", path = "../jugar-input" }
+jugar-audio = { version = "0.1", path = "../jugar-audio" }
+jugar-procgen = { version = "0.1", path = "../jugar-procgen" }
 glam = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }

@@ -9,7 +9,7 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
-jugar-core = { path = "../jugar-core" }
+jugar-core = { version = "0.1", path = "../jugar-core" }
 glam = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }

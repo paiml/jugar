@@ -12,10 +12,10 @@ categories = ["wasm", "game-engines", "web-programming"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-jugar = { path = "../jugar" }
-jugar-core = { path = "../jugar-core" }
-jugar-input = { path = "../jugar-input" }
-jugar-render = { path = "../jugar-render" }
+jugar = { version = "0.1", path = "../jugar" }
+jugar-core = { version = "0.1", path = "../jugar-core" }
+jugar-input = { version = "0.1", path = "../jugar-input" }
+jugar-render = { version = "0.1", path = "../jugar-render" }
 wasm-bindgen = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
