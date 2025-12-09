@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Pong - Jugar WASM Game Engine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            touch-action: none;
+        }
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-family: monospace;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading WASM...</div>
+    <canvas id="game-canvas"></canvas>
+    <script type="module">
+        // Jugar WASM Pong - ABSOLUTE ZERO JavaScript Computation
+        // All game logic runs in Rust/WASM. This JS only:
+        // 1. Forwards input events as JSON
+        // 2. Executes Canvas2D render commands from WASM
+
+        import init, { WebPlatform } from './pkg/jugar_web.js';
+
+        async function main() {
+            // Initialize WASM module
+            await init();
+
+            // Get canvas and context
+            const canvas = document.getElementById('game-canvas');
+            const ctx = canvas.getContext('2d');
+
+            // Resize canvas to window
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            // Create WebPlatform with config
+            const config = JSON.stringify({
+                width: canvas.width,
+                height: canvas.height,
+                debug: false
+            });
+            const platform = new WebPlatform(config);
+
+            // Hide loading message
+            document.getElementById('loading').style.display = 'none';
+
+            // Input event buffer (JSON format for WASM)
+            const events = [];
+
+            // Keyboard events
+            document.addEventListener('keydown', (e) => {
+                events.push({
+                    event_type: 'KeyDown',
+                    timestamp: e.timeStamp,
+                    data: { key: e.code }
+                });
+                e.preventDefault();
+            });
+
+            document.addEventListener('keyup', (e) => {
+                events.push({
+                    event_type: 'KeyUp',
+                    timestamp: e.timeStamp,
+                    data: { key: e.code }
+                });
+                e.preventDefault();
+            });
+
+            // Mouse events
+            canvas.addEventListener('mousedown', (e) => {
+                events.push({
+                    event_type: 'MouseDown',
+                    timestamp: e.timeStamp,
+                    data: { button: e.button, x: e.clientX, y: e.clientY }
+                });
+            });
+
+            canvas.addEventListener('mouseup', (e) => {
+                events.push({
+                    event_type: 'MouseUp',
+                    timestamp: e.timeStamp,
+                    data: { button: e.button, x: e.clientX, y: e.clientY }
+                });
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                events.push({
+                    event_type: 'MouseMove',
+                    timestamp: e.timeStamp,
+                    data: { x: e.clientX, y: e.clientY }
+                });
+            });
+
+            // Touch events
+            canvas.addEventListener('touchstart', (e) => {
+                for (const touch of e.changedTouches) {
+                    events.push({
+                        event_type: 'TouchStart',
+                        timestamp: e.timeStamp,
+                        data: { id: touch.identifier, x: touch.clientX, y: touch.clientY }
+                    });
+                }
+                e.preventDefault();
+            }, { passive: false });
+
+            canvas.addEventListener('touchmove', (e) => {
+                for (const touch of e.changedTouches) {
+                    events.push({
+                        event_type: 'TouchMove',
+                        timestamp: e.timeStamp,
+                        data: { id: touch.identifier, x: touch.clientX, y: touch.clientY }
+                    });
+                }
+                e.preventDefault();
+            }, { passive: false });
+
+            canvas.addEventListener('touchend', (e) => {
+                for (const touch of e.changedTouches) {
+                    events.push({
+                        event_type: 'TouchEnd',
+                        timestamp: e.timeStamp,
+                        data: { id: touch.identifier, x: touch.clientX, y: touch.clientY }
+                    });
+                }
+                e.preventDefault();
+            }, { passive: false });
+
+            // Helper to convert color to CSS rgba
+            // Color can be an array [r, g, b, a] or object {r, g, b, a}
+            function rgba(color) {
+                if (Array.isArray(color)) {
+                    return `rgba(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)}, ${color[3]})`;
+                }
+                if (color && typeof color === 'object') {
+                    return `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${color.a})`;
+                }
+                return color || 'black';
+            }
+
+            // Game loop using requestAnimationFrame
+            function frame(timestamp) {
+                // Handle resize
+                if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                    platform.resize(canvas.width, canvas.height);
+                }
+
+                // Call WASM frame with timestamp and input events
+                const inputJson = JSON.stringify(events);
+                events.length = 0; // Clear event buffer
+
+                const output = JSON.parse(platform.frame(timestamp, inputJson));
+                const commands = output.commands;
+
+                // Execute Canvas2D render commands from WASM
+                for (const cmd of commands) {
+                    switch (cmd.type) {
+                        case 'Clear':
+                            ctx.fillStyle = rgba(cmd.color);
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            break;
+
+                        case 'FillRect':
+                            ctx.fillStyle = rgba(cmd.color);
+                            ctx.fillRect(cmd.x, cmd.y, cmd.width, cmd.height);
+                            break;
+
+                        case 'StrokeRect':
+                            ctx.strokeStyle = rgba(cmd.color);
+                            ctx.lineWidth = cmd.line_width || 1;
+                            ctx.strokeRect(cmd.x, cmd.y, cmd.width, cmd.height);
+                            break;
+
+                        case 'FillCircle':
+                            ctx.fillStyle = rgba(cmd.color);
+                            ctx.beginPath();
+                            ctx.arc(cmd.x, cmd.y, cmd.radius, 0, Math.PI * 2);
+                            ctx.fill();
+                            break;
+
+                        case 'StrokeCircle':
+                            ctx.strokeStyle = rgba(cmd.color);
+                            ctx.lineWidth = cmd.line_width || 1;
+                            ctx.beginPath();
+                            ctx.arc(cmd.x, cmd.y, cmd.radius, 0, Math.PI * 2);
+                            ctx.stroke();
+                            break;
+
+                        case 'Line':
+                            ctx.strokeStyle = rgba(cmd.color);
+                            ctx.lineWidth = cmd.line_width || 1;
+                            ctx.beginPath();
+                            ctx.moveTo(cmd.x1, cmd.y1);
+                            ctx.lineTo(cmd.x2, cmd.y2);
+                            ctx.stroke();
+                            break;
+
+                        case 'FillText':
+                            ctx.fillStyle = rgba(cmd.color);
+                            ctx.font = cmd.font || '16px monospace';
+                            ctx.textAlign = cmd.align || 'left';
+                            ctx.textBaseline = cmd.baseline || 'top';
+                            ctx.fillText(cmd.text, cmd.x, cmd.y);
+                            break;
+
+                        case 'SetAlpha':
+                            ctx.globalAlpha = cmd.alpha;
+                            break;
+
+                        case 'Transform':
+                            ctx.setTransform(cmd.a, cmd.b, cmd.c, cmd.d, cmd.e, cmd.f);
+                            break;
+
+                        case 'DrawImage':
+                            // Image drawing would require preloaded images
+                            // Skipped for minimal demo
+                            break;
+                    }
+                }
+
+                // Continue game loop
+                requestAnimationFrame(frame);
+            }
+
+            // Start game loop
+            requestAnimationFrame(frame);
+        }
+
+        main().catch(console.error);
+    </script>
+</body>
+</html>

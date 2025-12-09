@@ -1,0 +1,39 @@
+[package]
+name = "jugar-web"
+description = "WASM browser integration for Jugar game engine - Zero JavaScript computation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["wasm", "game-engine", "browser", "canvas", "webassembly"]
+categories = ["wasm", "game-engines", "web-programming"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+jugar = { path = "../jugar" }
+jugar-core = { path = "../jugar-core" }
+jugar-input = { path = "../jugar-input" }
+jugar-render = { path = "../jugar-render" }
+wasm-bindgen = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+glam = { workspace = true }
+fastrand = "2.1"
+aprender = "0.16"
+trueno = { workspace = true }
+
+[[bin]]
+name = "generate_pong_ai"
+path = "src/bin/generate_pong_ai.rs"
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[features]
+default = []
+
+[lints]
+workspace = true

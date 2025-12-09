@@ -38,3 +38,6 @@ lcov.info
 
 # WASM artifacts (if not in target/)
 *.wasm
+node_modules/
+test-results/
+playwright-report/
