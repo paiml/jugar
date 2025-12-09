@@ -317,7 +317,10 @@ impl InputState {
     /// Gets key state
     #[must_use]
     pub fn key(&self, key: KeyCode) -> ButtonState {
-        self.keys.get(&key).copied().unwrap_or(ButtonState::Released)
+        self.keys
+            .get(&key)
+            .copied()
+            .unwrap_or(ButtonState::Released)
     }
 
     /// Sets key state

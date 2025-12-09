@@ -190,7 +190,9 @@ impl ValueNoise {
         let n = (x.wrapping_mul(374761393))
             .wrapping_add(y.wrapping_mul(668265263))
             .wrapping_add(self.seed as i32);
-        let n = n.wrapping_mul(n.wrapping_mul(n.wrapping_mul(60493))).wrapping_add(19990303);
+        let n = n
+            .wrapping_mul(n.wrapping_mul(n.wrapping_mul(60493)))
+            .wrapping_add(19990303);
         let n = (n >> 1) & 0x7FFF_FFFF;
         n as f32 / 0x7FFF_FFFF as f32
     }
@@ -452,7 +454,9 @@ impl DungeonGenerator {
         let (start, end) = if x1 < x2 { (x1, x2) } else { (x2, x1) };
         for x in start..=end {
             if dungeon.in_bounds(x, y) {
-                let tile = dungeon.get(x as usize, y as usize).unwrap_or(DungeonTile::Wall);
+                let tile = dungeon
+                    .get(x as usize, y as usize)
+                    .unwrap_or(DungeonTile::Wall);
                 if tile == DungeonTile::Wall {
                     dungeon.set(x as usize, y as usize, DungeonTile::Corridor);
                 }
@@ -464,7 +468,9 @@ impl DungeonGenerator {
         let (start, end) = if y1 < y2 { (y1, y2) } else { (y2, y1) };
         for y in start..=end {
             if dungeon.in_bounds(x, y) {
-                let tile = dungeon.get(x as usize, y as usize).unwrap_or(DungeonTile::Wall);
+                let tile = dungeon
+                    .get(x as usize, y as usize)
+                    .unwrap_or(DungeonTile::Wall);
                 if tile == DungeonTile::Wall {
                     dungeon.set(x as usize, y as usize, DungeonTile::Corridor);
                 }
@@ -823,9 +829,10 @@ mod tests {
 
         for x in 0..10 {
             for y in 0..10 {
-                assert!((noise1.sample(x as f32, y as f32) - noise2.sample(x as f32, y as f32))
-                    .abs()
-                    < f32::EPSILON);
+                assert!(
+                    (noise1.sample(x as f32, y as f32) - noise2.sample(x as f32, y as f32)).abs()
+                        < f32::EPSILON
+                );
             }
         }
     }

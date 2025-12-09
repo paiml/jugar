@@ -381,7 +381,10 @@ mod tests {
 
         // Should have run 1 tick with 0.5*fixed_dt remaining
         let alpha = game_loop.alpha();
-        assert!(alpha > 0.4 && alpha < 0.6, "Alpha should be ~0.5, got {alpha}");
+        assert!(
+            alpha > 0.4 && alpha < 0.6,
+            "Alpha should be ~0.5, got {alpha}"
+        );
     }
 
     #[test]

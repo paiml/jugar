@@ -425,9 +425,8 @@ impl AudioSystem {
         }
 
         // Remove finished sounds
-        self.playing.retain(|_, p| {
-            p.state != PlaybackState::Stopped && !p.is_finished()
-        });
+        self.playing
+            .retain(|_, p| p.state != PlaybackState::Stopped && !p.is_finished());
     }
 
     /// Calculates final volume for a sound (with attenuation and channel mixing)

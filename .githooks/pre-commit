@@ -1,0 +1,16 @@
+#!/bin/sh
+# Pre-commit hook for Jugar (fast checks only)
+
+set -e
+
+echo "Running pre-commit checks..."
+
+# Check formatting
+echo "Checking formatting..."
+cargo fmt --all -- --check
+
+# Run clippy (fast)
+echo "Running clippy..."
+cargo clippy --all-targets -- -D warnings
+
+echo "Pre-commit checks passed!"
