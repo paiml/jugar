@@ -632,4 +632,50 @@ mod tests {
         assert!(attr.org_label().contains("paiml.com"));
         assert!(attr.model_label().contains("491 bytes"));
     }
+
+    // ==================== Coverage Gap Tests ====================
+
+    #[test]
+    fn test_demo_state_record_input_direct() {
+        let mut state = DemoState {
+            idle_time: 5.0,
+            auto_engaged: true,
+            ..Default::default()
+        };
+
+        state.record_input();
+
+        assert!(state.idle_time() < 0.001);
+        assert!(!state.is_auto_engaged());
+    }
+
+    #[test]
+    fn test_demo_state_partial_difficulty_cycle() {
+        let mut state = DemoState::default();
+        let initial_left = state.left_difficulty();
+        let initial_right = state.right_difficulty();
+
+        // Update with less than one period (60s default)
+        state.update_difficulty_cycle(30.0); // Half period
+
+        // Should NOT swap yet
+        assert_eq!(state.left_difficulty(), initial_left);
+        assert_eq!(state.right_difficulty(), initial_right);
+
+        // Update with more time to complete the period
+        state.update_difficulty_cycle(30.0); // Complete the period
+
+        // Now should swap
+        assert_eq!(state.left_difficulty(), initial_right);
+        assert_eq!(state.right_difficulty(), initial_left);
+    }
+
+    #[test]
+    fn test_demo_state_new_accessors() {
+        let state = DemoState::new(10.0, 30.0);
+
+        assert!(state.idle_time() < 0.001);
+        assert_eq!(state.left_difficulty(), 7); // Per spec: challenging
+        assert_eq!(state.right_difficulty(), 5); // Per spec: slightly easier
+    }
 }

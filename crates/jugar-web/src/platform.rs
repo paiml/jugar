@@ -4524,4 +4524,199 @@ mod tests {
             text_end_estimate
         );
     }
+
+    // ==================== Coverage Gap Tests ====================
+
+    #[test]
+    fn test_button_rect_boundary_conditions() {
+        let btn = ButtonRect::new(10.0, 20.0, 100.0, 50.0);
+
+        // Top-left corner (inside)
+        assert!(btn.contains(10.0, 20.0), "Top-left corner should be inside");
+
+        // Bottom-right corner (inside)
+        assert!(
+            btn.contains(110.0, 70.0),
+            "Bottom-right corner should be inside"
+        );
+
+        // Inside the button
+        assert!(btn.contains(50.0, 45.0), "Center should be inside");
+
+        // Just outside left edge
+        assert!(!btn.contains(9.9, 45.0), "Left of button should be outside");
+
+        // Just outside right edge
+        assert!(
+            !btn.contains(110.1, 45.0),
+            "Right of button should be outside"
+        );
+
+        // Just outside top edge
+        assert!(!btn.contains(50.0, 19.9), "Above button should be outside");
+
+        // Just outside bottom edge
+        assert!(!btn.contains(50.0, 70.1), "Below button should be outside");
+    }
+
+    #[test]
+    fn test_button_width_calculation() {
+        // "Test" = 4 chars * 8.0 + 10.0 * 2 = 32 + 20 = 52
+        let width = HudButtons::button_width("Test", 8.0, 10.0);
+        assert!((width - 52.0).abs() < 0.01);
+
+        // Empty string
+        let empty_width = HudButtons::button_width("", 8.0, 10.0);
+        assert!((empty_width - 20.0).abs() < 0.01); // Just padding
+
+        // Longer text
+        let long_width = HudButtons::button_width("HelloWorld", 8.0, 5.0);
+        // 10 chars * 8.0 + 5.0 * 2 = 80 + 10 = 90
+        assert!((long_width - 90.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_hud_buttons_ultrawide_layout() {
+        // Ultra-wide monitor (32:9 aspect ratio)
+        let hud = HudButtons::calculate(3840.0, 1080.0);
+
+        // Verify buttons exist and have positive dimensions
+        assert!(hud.mode_demo.width > 0.0);
+        assert!(hud.mode_1p.width > 0.0);
+        assert!(hud.mode_2p.width > 0.0);
+
+        // Speed buttons should be present
+        assert!(hud.speed_1x.width > 0.0);
+        assert!(hud.speed_1000x.width > 0.0);
+
+        // Buttons should be within canvas bounds
+        assert!(hud.mode_demo.x + hud.mode_demo.width < 3840.0);
+        assert!(hud.download.x + hud.download.width < 3840.0);
+    }
+
+    #[test]
+    fn test_hud_buttons_mobile_layout() {
+        // Mobile (narrow screen)
+        let hud = HudButtons::calculate(320.0, 640.0);
+
+        // Verify buttons fit on narrow screen
+        assert!(hud.mode_demo.x >= 0.0);
+        assert!(hud.mode_demo.x + hud.mode_demo.width <= 320.0);
+
+        // All buttons should be within bounds
+        let all_buttons = [&hud.mode_demo, &hud.mode_1p, &hud.mode_2p, &hud.speed_1x];
+
+        for btn in all_buttons {
+            assert!(
+                btn.x + btn.width <= 320.0,
+                "Button at x={} width={} exceeds screen width",
+                btn.x,
+                btn.width
+            );
+        }
+    }
+
+    #[test]
+    fn test_hud_buttons_square_layout() {
+        // Square aspect ratio
+        let hud = HudButtons::calculate(600.0, 600.0);
+
+        // Buttons should be present
+        assert!(hud.mode_demo.width > 0.0);
+        assert!(hud.ai_decrease.width > 0.0);
+        assert!(hud.ai_increase.width > 0.0);
+    }
+
+    // ==================== High-Priority Coverage Tests ====================
+
+    #[test]
+    fn test_web_config_from_json_full() {
+        let json =
+            r#"{"width":1920,"height":1080,"target_fps":144,"debug":true,"ai_enabled":false}"#;
+        let config = WebConfig::from_json(json);
+        assert!(config.is_ok());
+        let config = config.unwrap();
+        assert_eq!(config.width, 1920);
+        assert_eq!(config.height, 1080);
+        assert_eq!(config.target_fps, 144);
+        assert!(config.debug);
+        assert!(!config.ai_enabled);
+    }
+
+    #[test]
+    fn test_web_config_from_json_partial() {
+        // JSON with only some fields - others should use defaults
+        let json = r#"{"width":640}"#;
+        let config = WebConfig::from_json(json);
+        assert!(config.is_ok());
+        let config = config.unwrap();
+        assert_eq!(config.width, 640);
+        assert_eq!(config.height, 600); // default
+        assert_eq!(config.target_fps, 60); // default
+        assert!(!config.debug); // default
+        assert!(config.ai_enabled); // default
+    }
+
+    #[test]
+    fn test_web_config_from_json_malformed() {
+        let result = WebConfig::from_json("not json at all {{{");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_web_platform_error_from_conversion() {
+        let input_err = InputTranslationError::InvalidJson("test error".to_string());
+        let platform_err: WebPlatformError = input_err.into();
+        assert!(matches!(platform_err, WebPlatformError::InputError(_)));
+        let err_str = platform_err.to_string();
+        assert!(err_str.contains("Input error"));
+    }
+
+    #[test]
+    fn test_web_platform_error_all_variants() {
+        let config_err = WebPlatformError::InvalidConfig("bad config".to_string());
+        assert_eq!(config_err.to_string(), "Invalid config: bad config");
+
+        let input_err = WebPlatformError::InputError("bad input".to_string());
+        assert_eq!(input_err.to_string(), "Input error: bad input");
+
+        let render_err = WebPlatformError::RenderError("bad render".to_string());
+        assert_eq!(render_err.to_string(), "Render error: bad render");
+    }
+
+    #[test]
+    fn test_button_rect_constructor() {
+        let btn = ButtonRect::new(10.0, 20.0, 100.0, 50.0);
+        assert!((btn.x - 10.0).abs() < 0.001);
+        assert!((btn.y - 20.0).abs() < 0.001);
+        assert!((btn.width - 100.0).abs() < 0.001);
+        assert!((btn.height - 50.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_hud_buttons_model_info_button_layout() {
+        let hud = HudButtons::calculate(800.0, 600.0);
+        // Model info button should be present with positive dimensions
+        assert!(hud.model_info.width > 0.0);
+        assert!(hud.model_info.height > 0.0);
+        // Should be within screen bounds
+        assert!(hud.model_info.x + hud.model_info.width <= 800.0);
+    }
+
+    #[test]
+    fn test_hud_buttons_sound_toggle_layout() {
+        let hud = HudButtons::calculate(800.0, 600.0);
+        // Sound toggle button should be present
+        assert!(hud.sound_toggle.width > 0.0);
+        assert!(hud.sound_toggle.height > 0.0);
+        assert!(hud.sound_toggle.x >= 0.0);
+    }
+
+    #[test]
+    fn test_hud_buttons_download_button_layout() {
+        let hud = HudButtons::calculate(800.0, 600.0);
+        // Download button should be present
+        assert!(hud.download.width > 0.0);
+        assert!(hud.download.height > 0.0);
+    }
 }
