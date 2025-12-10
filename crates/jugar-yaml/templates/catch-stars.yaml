@@ -1,0 +1,22 @@
+# Catch the Stars - Level 1 Template
+# A simple game for ages 5-7
+#
+# Just 8 lines to create a complete game!
+
+game: catch-the-stars
+
+# Who is playing?
+character: bunny
+
+# How do they move?
+move: arrows
+
+# What's the world like?
+background: space
+music: gentle
+
+# What happens when bunny touches a star?
+when_touch:
+  target: star
+  sound: twinkle
+  score: 1
