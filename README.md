@@ -18,14 +18,18 @@
   </a>
 </p>
 
-<p align="center">
-  <a href="#features">Features</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#architecture">Architecture</a> •
-  <a href="#examples">Examples</a> •
-  <a href="#documentation">Docs</a> •
-  <a href="#contributing">Contributing</a>
-</p>
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Examples](#examples)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
