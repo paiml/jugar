@@ -69,3 +69,19 @@ roadmap:
   - blocking
   - critical
   notes: 'COMPLETED: 100/100 points achieved. Coverage 95.51%, WASM 101KB gzipped, TDG A+ (99.4/100), 23/23 Playwright tests pass'
+- id: Convert Playwright to Probar
+  github_issue: null
+  item_type: task
+  title: 'New task: Convert Playwright to Probar'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-10T18:06:01.277162123+00:00
+  updated: 2025-12-10T18:06:10.186854113+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

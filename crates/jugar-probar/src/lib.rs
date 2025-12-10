@@ -88,6 +88,25 @@ mod simulation;
 mod snapshot;
 mod visual_regression;
 
+/// WASM Coverage Tooling (spec: probar-wasm-coverage-tooling.md)
+#[allow(
+    clippy::module_name_repetitions,
+    clippy::must_use_candidate,
+    clippy::missing_const_for_fn,
+    clippy::missing_errors_doc,
+    clippy::doc_markdown,
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::use_self,
+    clippy::inline_always,
+    clippy::similar_names,
+    clippy::missing_panics_doc,
+    clippy::suboptimal_flops,
+    clippy::uninlined_format_args,
+    clippy::redundant_closure_for_method_calls
+)]
+pub mod coverage;
+
 pub use accessibility::{
     AccessibilityAudit, AccessibilityConfig, AccessibilityIssue, AccessibilityValidator, Color,
     ContrastAnalysis, ContrastPair, FlashDetector, FlashResult, FocusConfig, KeyboardIssue,

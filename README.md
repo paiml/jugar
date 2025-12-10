@@ -190,7 +190,9 @@ ls target/wasm32-unknown-unknown/release/*.wasm
 A responsive Pong implementation that works from mobile to 32:9 ultrawide:
 
 ```bash
-cargo run -p universal_pong
+# Run the Pong web demo
+make build-web && make serve-web
+# Open http://localhost:8080
 ```
 
 Features:
@@ -198,6 +200,64 @@ Features:
 - Keyboard (W/S, Up/Down)
 - Gamepad support
 - Responsive paddle positioning
+- AI opponent with .apr ML model (Dynamic Difficulty Adjustment)
+- SHAP-like explainability widgets
+
+### Probar Testing Examples
+
+```bash
+# Deterministic simulation with replay verification
+cargo run --example pong_simulation -p jugar-probar
+
+# Playwright-style locator API demo
+cargo run --example locator_demo -p jugar-probar
+
+# WCAG accessibility checking
+cargo run --example accessibility_demo -p jugar-probar
+```
+
+## Testing
+
+### Probar: Rust-Native WASM Game Testing
+
+Jugar uses **Probar** (Spanish: "to test/prove") - a pure Rust testing framework that replaces Playwright for E2E testing. Unlike Playwright, Probar can directly inspect game state without browser automation overhead.
+
+```bash
+# Run all E2E tests (39 tests, ~3 seconds)
+make test-e2e
+
+# Run with verbose output
+make test-e2e-verbose
+
+# Or directly via cargo
+cargo test -p jugar-web --test probar_pong
+```
+
+### Probar vs Playwright
+
+| Aspect | Playwright | Probar |
+|--------|-----------|--------|
+| **Language** | TypeScript | Pure Rust |
+| **Browser** | Required (Chromium) | Not needed |
+| **Game State** | Black box (DOM only) | Direct API access |
+| **CI Setup** | Node.js + browser | Just `cargo test` |
+| **Zero JS** | ❌ Violates constraint | ✅ Pure Rust |
+
+### Test Suites
+
+```bash
+# Unit tests (fast, <2 min)
+make test-fast
+
+# All tests with coverage
+make coverage
+
+# Property-based tests (QuickCheck-style)
+make test-property
+
+# Chaos engineering tests
+cargo test -p jugar-web --test chaos
+```
 
 ## Quality Standards
 

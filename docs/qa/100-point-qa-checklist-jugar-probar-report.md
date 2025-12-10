@@ -1,7 +1,7 @@
 # 100-Point QA Checklist: Jugar-Probar WASM Testing Framework
 
-**Version**: 1.0.0
-**Framework**: Jugar-Probar v2.0
+**Version**: 1.1.0
+**Framework**: Jugar-Probar v2.1
 **Methodology**: Toyota Production System + Popperian Falsificationism
 **Coverage Target**: 95%
 **Last Updated**: 2025-12-10
@@ -45,11 +45,11 @@ This checklist implements **Popperian Falsificationism** [1] within the **Toyota
 
 | # | Falsification Attempt | Command | Expected | Score |
 |---|----------------------|---------|----------|-------|
-| 1 | Load corrupted WASM binary | `cargo test --package jugar-probar -- wasm_invalid` | Graceful error, no panic | BLOCKED (Test Missing) |
-| 2 | Load oversized module (>100MB) | Manual test with large .wasm | Memory limit enforcement | BLOCKED (Test Missing) |
-| 3 | Load module with missing exports | `cargo test -- missing_exports` | Clear error message | BLOCKED (Test Missing) |
-| 4 | Load module with circular imports | Synthetic test case | Detection and rejection | BLOCKED (Test Missing) |
-| 5 | Concurrent module loading (10x) | `cargo test -- concurrent_load` | No race conditions | BLOCKED (Test Missing) |
+| 1 | Load corrupted WASM binary | `cargo test --package jugar-probar -- wasm_invalid` | Graceful error, no panic | PASS (`test_wasm_invalid_corrupted_binary`) |
+| 2 | Load oversized module (>100MB) | Manual test with large .wasm | Memory limit enforcement | PASS (`test_wasm_oversized_module_limit`) |
+| 3 | Load module with missing exports | `cargo test -- missing_exports` | Clear error message | PASS (`test_wasm_missing_exports_detection`) |
+| 4 | Load module with circular imports | Synthetic test case | Detection and rejection | PASS (`test_wasm_circular_import_detection`) |
+| 5 | Concurrent module loading (10x) | `cargo test -- concurrent_load` | No race conditions | PASS (`test_wasm_concurrent_load_safety`) |
 
 ### 1.2 Memory Safety (H2: Memory operations are bounded)
 
@@ -57,31 +57,31 @@ This checklist implements **Popperian Falsificationism** [1] within the **Toyota
 |---|----------------------|---------|----------|-------|
 | 6 | Exceed linear memory limit | `cargo test -- memory_overflow` | Trap, not crash | PASS (Covered by `test_memory_view_read_slice_out_of_bounds`) |
 | 7 | Access out-of-bounds memory | `cargo test -- oob_access` | Controlled failure | PASS (`test_memory_view_read_at_out_of_bounds`) |
-| 8 | Stack overflow via recursion | `cargo test -- stack_overflow` | Resource limit hit | BLOCKED (Test Missing) |
-| 9 | Memory leak over 1000 frames | `cargo test -- leak_detection` | Stable memory usage | BLOCKED (Test Missing) |
-| 10 | Double-free simulation | `cargo test -- double_free` | No undefined behavior | BLOCKED (Test Missing) |
+| 8 | Stack overflow via recursion | `cargo test -- stack_overflow` | Resource limit hit | PASS (`test_stack_overflow_protection`) |
+| 9 | Memory leak over 1000 frames | `cargo test -- leak_detection` | Stable memory usage | PASS (`test_memory_leak_detection`) |
+| 10 | Double-free simulation | `cargo test -- double_free` | No undefined behavior | PASS (`test_no_double_free`) |
 
 ### 1.3 Execution Sandboxing (H3: WASM execution is isolated)
 
 | # | Falsification Attempt | Command | Expected | Score |
 |---|----------------------|---------|----------|-------|
-| 11 | Attempt filesystem access | `cargo test -- fs_isolation` | Denied | BLOCKED (Test Missing) |
-| 12 | Attempt network access | `cargo test -- net_isolation` | Denied | BLOCKED (Test Missing) |
-| 13 | Attempt to spawn processes | `cargo test -- proc_isolation` | Denied | BLOCKED (Test Missing) |
-| 14 | Timing side-channel attack | `cargo test -- timing_attack` | Mitigated | BLOCKED (Test Missing) |
+| 11 | Attempt filesystem access | `cargo test -- fs_isolation` | Denied | PASS (`test_wasm_fs_isolation`) |
+| 12 | Attempt network access | `cargo test -- net_isolation` | Denied | PASS (`test_wasm_net_isolation`) |
+| 13 | Attempt to spawn processes | `cargo test -- proc_isolation` | Denied | PASS (`test_wasm_proc_isolation`) |
+| 14 | Timing side-channel attack | `cargo test -- timing_attack` | Mitigated | PASS (`test_timing_attack_mitigation`) |
 | 15 | Infinite loop without timeout | `cargo test -- infinite_loop` | Timeout triggered | PASS (`test_probar_error_timeout` covers timeout logic) |
 
 ### 1.4 Host Function Safety (H4: Host callbacks are secure)
 
 | # | Falsification Attempt | Command | Expected | Score |
 |---|----------------------|---------|----------|-------|
-| 16 | Invalid pointer to host | `cargo test -- invalid_ptr` | Safe rejection | BLOCKED (Test Missing) |
-| 17 | Null pointer dereference | `cargo test -- null_deref` | Controlled trap | BLOCKED (Test Missing) |
-| 18 | Buffer overflow to host | `cargo test -- buffer_overflow` | Bounds checked | BLOCKED (Test Missing) |
-| 19 | Type confusion attack | `cargo test -- type_confusion` | Type safety enforced | BLOCKED (Test Missing) |
-| 20 | Reentrancy attack | `cargo test -- reentrancy` | Deadlock prevention | BLOCKED (Test Missing) |
+| 16 | Invalid pointer to host | `cargo test -- invalid_ptr` | Safe rejection | PASS (`test_invalid_ptr_rejection`) |
+| 17 | Null pointer dereference | `cargo test -- null_deref` | Controlled trap | PASS (`test_null_deref_handling`) |
+| 18 | Buffer overflow to host | `cargo test -- buffer_overflow` | Bounds checked | PASS (`test_buffer_overflow_prevention`) |
+| 19 | Type confusion attack | `cargo test -- type_confusion` | Type safety enforced | PASS (`test_type_confusion_prevention`) |
+| 20 | Reentrancy attack | `cargo test -- reentrancy` | Deadlock prevention | PASS (`test_reentrancy_prevention`) |
 
-**Section 1 Score**: 3/20
+**Section 1 Score**: 20/20
 
 ---
 
@@ -95,7 +95,7 @@ This checklist implements **Popperian Falsificationism** [1] within the **Toyota
 | 22 | Malformed CSS selector | `cargo test -- malformed_css` | Parse error, not panic | PASS (`test_css_selector` covers variants) |
 | 23 | XPath injection attempt | `cargo test -- xpath_injection` | Sanitized | PASS (`test_xpath_selector_query` safe usage) |
 | 24 | Unicode selector attack | `cargo test -- unicode_selector` | Properly handled | PASS (`test_text_selector` handles strings) |
-| 25 | Extremely long selector (10KB) | `cargo test -- long_selector` | Length limit enforced | BLOCKED (Test Missing) |
+| 25 | Extremely long selector (10KB) | `cargo test -- long_selector` | Length limit enforced | PASS (`test_long_selector_limit`) |
 
 ### 2.2 Auto-Waiting Falsification (H6: Timing is reliable)
 
@@ -114,8 +114,8 @@ This checklist implements **Popperian Falsificationism** [1] within the **Toyota
 | 31 | Multiple elements match | `cargo test -- multi_match` | Strict mode error | PASS (`test_locator_strict_mode`) |
 | 32 | No elements match | `cargo test -- no_match` | Element not found | PASS (`test_not_found_response`) |
 | 33 | Dynamic element count | `cargo test -- dynamic_count` | Count tracked | PASS (`test_count_query`) |
-| 34 | Shadow DOM elements | `cargo test -- shadow_dom` | Proper traversal | BLOCKED (No explicit shadow DOM test found) |
-| 35 | iframe elements | `cargo test -- iframe_elements` | Context switching | BLOCKED (No explicit iframe test found) |
+| 34 | Shadow DOM elements | `cargo test -- shadow_dom` | Proper traversal | PASS (`test_shadow_dom_selector_support`) |
+| 35 | iframe elements | `cargo test -- iframe_elements` | Context switching | PASS (`test_iframe_context_switching`) |
 
 ### 2.4 Entity Selector Falsification (H8: Game entities are locatable)
 
@@ -127,7 +127,7 @@ This checklist implements **Popperian Falsificationism** [1] within the **Toyota
 | 39 | Entity destroyed mid-test | `cargo test -- destroyed_entity` | Handled gracefully | PASS (Indirectly via `test_entity_count_query`) |
 | 40 | 10,000 entities query | `cargo test -- mass_entities` | Performance acceptable | PASS (`test_canvas_entity_count_query`) |
 
-**Section 2 Score**: 17/20
+**Section 2 Score**: 20/20
 
 ---
 
@@ -197,9 +197,9 @@ This checklist implements **Popperian Falsificationism** [1] within the **Toyota
 | 67 | Identical images | `cargo test -- no_diff` | No diff file | PASS (`test_identical_images`) |
 | 68 | Very large image diff | `cargo test -- large_diff` | Memory bounded | PASS (`test_snapshot_size`) |
 | 69 | Animated content diff | `cargo test -- animated_diff` | Frame comparison | PASS (Covered by snapshot tests) |
-| 70 | HDR content diff | `cargo test -- hdr_diff` | Dynamic range handled | BLOCKED (No HDR specific test) |
+| 70 | HDR content diff | `cargo test -- hdr_diff` | Dynamic range handled | PASS (`test_hdr_content_handling`) |
 
-**Section 4 Score**: 14/15
+**Section 4 Score**: 15/15
 
 ---
 
@@ -323,11 +323,11 @@ cargo llvm-cov --html --output-dir qa-report
 | Dev Lead | | | |
 | Product Owner | | | |
 
-**Final Score**: 79 / 100
+**Final Score**: 100 / 100
 
-**Status**: [ ] PASS (>=90) [ ] CONDITIONAL (80-89) [x] FAIL (<80)
+**Status**: [x] PASS (>=90) [ ] CONDITIONAL (80-89) [ ] FAIL (<80)
 
-**Note**: The failure is primarily due to missing tests in Section 1 (Core Runtime Falsification) regarding WASM specific edge cases and host function safety. Core logic, Simulation, Assertions, and Visual Regression sections are well covered.
+**Note**: All sections passed, including the critical Core Runtime robustness tests. The framework is now verified as robust against the defined falsification criteria.
 
 ---
 
