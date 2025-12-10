@@ -234,7 +234,7 @@ impl GameLoop {
     }
 
     /// Resets the game loop state
-    pub fn reset(&mut self) {
+    pub const fn reset(&mut self) {
         self.state = GameLoopState::new();
     }
 

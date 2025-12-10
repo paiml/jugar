@@ -284,6 +284,7 @@ impl JugarEngine {
     }
 
     /// Gets the viewport mutably
+    #[allow(clippy::missing_const_for_fn)]
     pub fn viewport_mut(&mut self) -> &mut render::Viewport {
         &mut self.viewport
     }
@@ -295,6 +296,7 @@ impl JugarEngine {
     }
 
     /// Gets the input state mutably
+    #[allow(clippy::missing_const_for_fn)]
     pub fn input_mut(&mut self) -> &mut input::InputState {
         &mut self.input
     }
@@ -306,6 +308,7 @@ impl JugarEngine {
     }
 
     /// Gets the audio system mutably
+    #[allow(clippy::missing_const_for_fn)]
     pub fn audio_mut(&mut self) -> &mut audio::AudioSystem {
         &mut self.audio
     }
@@ -317,6 +320,7 @@ impl JugarEngine {
     }
 
     /// Gets the ECS world mutably
+    #[allow(clippy::missing_const_for_fn)]
     pub fn world_mut(&mut self) -> &mut jugar_core::World {
         &mut self.world
     }
@@ -328,6 +332,7 @@ impl JugarEngine {
     }
 
     /// Gets the physics world mutably
+    #[allow(clippy::missing_const_for_fn)]
     pub fn physics_mut(&mut self) -> &mut physics::PhysicsWorld {
         &mut self.physics
     }
@@ -339,6 +344,7 @@ impl JugarEngine {
     }
 
     /// Gets the UI container mutably
+    #[allow(clippy::missing_const_for_fn)]
     pub fn ui_mut(&mut self) -> &mut ui::UiContainer {
         &mut self.ui
     }
@@ -419,7 +425,7 @@ impl JugarEngine {
     }
 
     /// Stops the engine
-    pub fn stop(&mut self) {
+    pub const fn stop(&mut self) {
         self.running = false;
     }
 }

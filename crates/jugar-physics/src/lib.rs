@@ -157,7 +157,7 @@ impl PhysicsWorld {
     }
 
     /// Sets the gravity
-    pub fn set_gravity(&mut self, gravity: Vec2) {
+    pub const fn set_gravity(&mut self, gravity: Vec2) {
         self.gravity = gravity;
     }
 

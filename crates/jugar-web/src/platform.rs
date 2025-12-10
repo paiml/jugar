@@ -1064,7 +1064,7 @@ impl WebGame for PongGame {
                 .on_paddle_hit(self.ball_y, self.left_paddle_y, self.paddle_height);
 
             // Audio: rally milestone every 5 hits
-            if self.rally_count.is_multiple_of(5) {
+            if self.rally_count % 5 == 0 {
                 self.audio.on_rally_milestone(self.rally_count);
             }
 
@@ -1094,7 +1094,7 @@ impl WebGame for PongGame {
                 .on_paddle_hit(self.ball_y, self.right_paddle_y, self.paddle_height);
 
             // Audio: rally milestone every 5 hits
-            if self.rally_count.is_multiple_of(5) {
+            if self.rally_count % 5 == 0 {
                 self.audio.on_rally_milestone(self.rally_count);
             }
         }
@@ -1307,7 +1307,7 @@ impl WebGame for PongGame {
 
         // Draw ellipse-like ball using the larger of the two radii for circle approximation
         // (true ellipse would require canvas transform, this gives a subtle effect)
-        let avg_radius = f32::midpoint(rx, ry);
+        let avg_radius = (rx + ry) / 2.0;
         frame.fill_circle(
             self.ball_x + shake_x,
             self.ball_y + shake_y,
