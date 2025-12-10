@@ -11,19 +11,10 @@
 
 <p align="center">
   <a href="https://github.com/paiml/jugar/actions/workflows/pmat-quality.yml">
-    <img src="https://github.com/paiml/jugar/actions/workflows/pmat-quality.yml/badge.svg" alt="PMAT Quality">
+    <img src="https://github.com/paiml/jugar/actions/workflows/pmat-quality.yml/badge.svg" alt="CI">
   </a>
   <a href="https://crates.io/crates/jugar">
     <img src="https://img.shields.io/crates/v/jugar.svg" alt="Crates.io">
-  </a>
-  <a href="https://docs.rs/jugar">
-    <img src="https://docs.rs/jugar/badge.svg" alt="Documentation">
-  </a>
-  <a href="https://github.com/paiml/jugar/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT">
-  </a>
-  <a href="https://codecov.io/gh/paiml/jugar">
-    <img src="https://codecov.io/gh/paiml/jugar/branch/main/graph/badge.svg" alt="Coverage">
   </a>
 </p>
 
