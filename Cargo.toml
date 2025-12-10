@@ -15,7 +15,9 @@ members = [
     "crates/jugar-apr",
     "crates/jugar-probar",
     "crates/jugar-probar-derive",
+    "crates/physics-toy-sandbox",
     "examples/universal_pong",
+    "examples/physics_sandbox_demo",
 ]
 
 [workspace.package]
@@ -87,7 +89,7 @@ wasmtime = "29"
 async-trait = "0.1"
 
 # UUID for unique identifiers
-uuid = { version = "1.11", features = ["v4", "serde"] }
+uuid = { version = "1.11", features = ["v4", "serde", "js"] }
 
 [workspace.lints.rust]
 # Safety and correctness

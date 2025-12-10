@@ -9,7 +9,7 @@
 
 WASM_TARGET := wasm32-unknown-unknown
 
-.PHONY: help tier1 tier2 tier3 build build-wasm build-web serve-web test test-fast test-property test-property-full test-e2e test-e2e-verbose test-e2e-coverage coverage coverage-summary coverage-open coverage-check coverage-ci coverage-clean lint lint-all lint-fast lint-bash lint-ts lint-html lint-js-complexity fmt clean all dev bench mutate mutate-quick mutate-file mutate-report kaizen pmat-tdg pmat-analyze pmat-ts pmat-score pmat-rust-score pmat-mutate pmat-validate-docs pmat-quality-gate pmat-context pmat-all install-tools verify-no-js verify-batuta-deps load-test load-test-quick load-test-full ai-test ai-simulate trace-test
+.PHONY: help tier1 tier2 tier3 build build-wasm build-web serve-web test test-fast test-property test-property-full test-e2e test-e2e-verbose test-e2e-coverage coverage coverage-summary coverage-open coverage-check coverage-ci coverage-clean lint lint-all lint-fast lint-bash lint-ts lint-html lint-js-complexity fmt clean all dev bench mutate mutate-quick mutate-file mutate-report kaizen pmat-tdg pmat-analyze pmat-ts pmat-score pmat-rust-score pmat-mutate pmat-validate-docs pmat-quality-gate pmat-context pmat-all install-tools verify-no-js verify-batuta-deps load-test load-test-quick load-test-full ai-test ai-simulate trace-test sandbox test-sandbox test-sandbox-verbose test-sandbox-coverage sandbox-lint sandbox-mutate build-sandbox-wasm
 
 # Default target
 all: tier2
@@ -655,3 +655,83 @@ clean-pmat: ## Clean PMAT artifacts (but preserve baseline)
 	rm -rf .pmat/embeddings/
 	rm -rf .pmat/work/
 	rm -rf .pmat-metrics/trends/
+
+# ============================================================================
+# PHYSICS TOY SANDBOX (Remixable Rube Goldberg builder)
+# Toyota Way: Kaizen, Poka-Yoke, Jidoka, Mieruka, Muda elimination
+# ============================================================================
+sandbox: ## Build and test physics-toy-sandbox crate
+	@echo "🎮 PHYSICS TOY SANDBOX"
+	@echo "======================"
+	@echo ""
+	@echo "  [1/3] Building sandbox crate..."
+	@cargo build -p physics-toy-sandbox --all-features
+	@echo "  [2/3] Running tests..."
+	@cargo test -p physics-toy-sandbox --all-features
+	@echo "  [3/3] Linting..."
+	@cargo clippy -p physics-toy-sandbox --all-features -- -D warnings
+	@echo ""
+	@echo "✅ Physics Toy Sandbox build complete!"
+
+test-sandbox: ## Run physics-toy-sandbox tests
+	@echo "🧪 Running physics-toy-sandbox tests..."
+	@cargo test -p physics-toy-sandbox --all-features -- --nocapture
+
+test-sandbox-verbose: ## Run physics-toy-sandbox tests with verbose output
+	@cargo test -p physics-toy-sandbox --all-features -- --nocapture --show-output
+
+test-sandbox-coverage: ## Run physics-toy-sandbox tests with coverage analysis
+	@echo "📊 PHYSICS TOY SANDBOX COVERAGE"
+	@echo "================================"
+	@echo ""
+	@echo "📋 Test Framework: Extreme TDD (tests in same file as impl)"
+	@echo "📋 Toyota Way: Poka-Yoke, Jidoka, Mieruka, Muda elimination"
+	@echo ""
+	@echo "  [1/4] Installing tools if needed..."
+	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
+	@echo "  [2/4] Cleaning old coverage data..."
+	@cargo llvm-cov clean --workspace 2>/dev/null || true
+	@mkdir -p target/coverage/sandbox
+	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
+	@echo "  [3/4] Running tests with instrumentation..."
+	@cargo llvm-cov --no-report -p physics-toy-sandbox --all-features 2>&1 | tail -20
+	@echo "  [4/4] Generating reports..."
+	@cargo llvm-cov report --html --output-dir target/coverage/sandbox -p physics-toy-sandbox
+	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════════════════╗"
+	@echo "║  📊 PHYSICS TOY SANDBOX COVERAGE SUMMARY                              ║"
+	@echo "╠══════════════════════════════════════════════════════════════════════╣"
+	@cargo llvm-cov report --summary-only -p physics-toy-sandbox 2>/dev/null | grep -E "TOTAL|physics-toy-sandbox" | head -5
+	@echo "╚══════════════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "📊 Module Coverage:"
+	@cargo llvm-cov report -p physics-toy-sandbox 2>/dev/null | grep -E "lib\.rs|material\.rs|contraption\.rs|thermometer\.rs|remix\.rs" || echo "  (run 'make coverage-open' to see full report)"
+	@echo ""
+	@echo "✅ Coverage report: target/coverage/sandbox/html/index.html"
+	@echo ""
+	@echo "🎯 Quality Metrics (Toyota Way):"
+	@echo "   • Function coverage target: ≥95%"
+	@echo "   • Line coverage target: ≥95%"
+	@echo "   • Poka-Yoke: NonZeroU32 density (no division-by-zero)"
+	@echo "   • Jidoka: Engine versioning (replay compatibility)"
+	@echo "   • Mieruka: ComplexityThermometer (visual control)"
+	@echo "   • Muda: No scalar fallback (WebGPU/WASM SIMD only)"
+
+sandbox-lint: ## Lint physics-toy-sandbox with pedantic clippy
+	@echo "🔍 Linting physics-toy-sandbox (pedantic)..."
+	@cargo clippy -p physics-toy-sandbox --all-features -- -D warnings -W clippy::pedantic
+	@echo "✅ Lint complete!"
+
+sandbox-mutate: ## Run mutation testing on physics-toy-sandbox
+	@echo "🧬 Running mutation testing on physics-toy-sandbox..."
+	@which cargo-mutants > /dev/null 2>&1 || (echo "📦 Installing cargo-mutants..." && cargo install cargo-mutants)
+	@cargo mutants --package physics-toy-sandbox --timeout 60 --no-times 2>&1 | tail -50
+	@echo ""
+	@echo "🎯 Mutation score target: ≥80%"
+
+build-sandbox-wasm: ## Build physics-toy-sandbox for WASM target
+	@echo "🌐 Building physics-toy-sandbox for WASM..."
+	@cargo build -p physics-toy-sandbox --target $(WASM_TARGET) --release --features wasm
+	@echo "✅ WASM build complete!"
+	@ls -lh target/$(WASM_TARGET)/release/*.wasm 2>/dev/null || echo "   (no .wasm output - this is a library crate)"

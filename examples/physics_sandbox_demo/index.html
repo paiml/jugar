@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Toy Sandbox</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #0a0a0f;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* MENU SCREEN - Dark + Neon */
+        #menu {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .menu-icon {
+            font-size: 80px;
+            margin-bottom: 10px;
+            animation: bounce 1s ease-in-out infinite;
+            filter: drop-shadow(0 0 20px rgba(233, 69, 96, 0.5));
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        #menu h1 {
+            font-size: 3.5rem;
+            color: #fff;
+            text-shadow: 0 0 40px #e94560, 0 0 80px #e94560;
+            margin-bottom: 5px;
+            font-weight: 800;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 40px #e94560, 0 0 80px #e94560; }
+            to { text-shadow: 0 0 60px #ff6b6b, 0 0 120px #ff6b6b, 0 0 180px #ff6b6b; }
+        }
+
+        #menu .subtitle {
+            color: rgba(255,255,255,0.7);
+            font-size: 1.3rem;
+            margin-bottom: 30px;
+            font-weight: 500;
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .scratch-btn {
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            border: none;
+            color: #fff;
+            font-size: 1.4rem;
+            font-weight: 700;
+            padding: 18px 40px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.15s;
+            box-shadow: 0 6px 0 #b8354a, 0 8px 25px rgba(233, 69, 96, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .scratch-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 9px 0 #b8354a, 0 15px 35px rgba(233, 69, 96, 0.5);
+        }
+
+        .scratch-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 #b8354a, 0 5px 15px rgba(233, 69, 96, 0.3);
+        }
+
+        .scratch-btn.cyan {
+            background: linear-gradient(135deg, #4ECDC4, #44A08D);
+            box-shadow: 0 6px 0 #3a9e97, 0 8px 25px rgba(78, 205, 196, 0.4);
+        }
+
+        .scratch-btn.cyan:hover {
+            box-shadow: 0 9px 0 #3a9e97, 0 15px 35px rgba(78, 205, 196, 0.5);
+        }
+
+        .scratch-btn.cyan:active {
+            box-shadow: 0 3px 0 #3a9e97, 0 5px 15px rgba(78, 205, 196, 0.3);
+        }
+
+        .scratch-btn.purple {
+            background: linear-gradient(135deg, #9B59B6, #8E44AD);
+            box-shadow: 0 6px 0 #7D3C98, 0 8px 25px rgba(155, 89, 182, 0.4);
+        }
+
+        .scratch-btn.purple:hover {
+            box-shadow: 0 9px 0 #7D3C98, 0 15px 35px rgba(155, 89, 182, 0.5);
+        }
+
+        .scratch-btn.purple:active {
+            box-shadow: 0 3px 0 #7D3C98, 0 5px 15px rgba(155, 89, 182, 0.3);
+        }
+
+        .scratch-btn.orange {
+            background: linear-gradient(135deg, #F39C12, #E67E22);
+            box-shadow: 0 6px 0 #D35400, 0 8px 25px rgba(243, 156, 18, 0.4);
+        }
+
+        .scratch-btn.orange:hover {
+            box-shadow: 0 9px 0 #D35400, 0 15px 35px rgba(243, 156, 18, 0.5);
+        }
+
+        .scratch-btn.orange:active {
+            box-shadow: 0 3px 0 #D35400, 0 5px 15px rgba(243, 156, 18, 0.3);
+        }
+
+        .scratch-btn span {
+            font-size: 1.6rem;
+        }
+
+        /* GIANT PLAY BUTTON - For kids! */
+        .giant-play {
+            font-size: 2.5rem !important;
+            padding: 30px 80px !important;
+            border-radius: 40px !important;
+            margin-bottom: 25px;
+            animation: pulse-play 2s ease-in-out infinite;
+            box-shadow: 0 10px 0 #b8354a, 0 15px 40px rgba(233, 69, 96, 0.5) !important;
+        }
+
+        .giant-play:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 0 #b8354a, 0 25px 50px rgba(233, 69, 96, 0.6) !important;
+        }
+
+        .giant-play:active {
+            transform: translateY(5px) scale(0.98);
+            box-shadow: 0 5px 0 #b8354a, 0 8px 20px rgba(233, 69, 96, 0.4) !important;
+        }
+
+        .giant-play span {
+            font-size: 2.5rem !important;
+        }
+
+        @keyframes pulse-play {
+            0%, 100% { box-shadow: 0 10px 0 #b8354a, 0 15px 40px rgba(233, 69, 96, 0.5); }
+            50% { box-shadow: 0 10px 0 #b8354a, 0 15px 60px rgba(233, 69, 96, 0.7), 0 0 80px rgba(233, 69, 96, 0.4); }
+        }
+
+        /* Secondary menu buttons - smaller */
+        .menu-buttons.secondary {
+            display: flex;
+            flex-direction: row;
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+
+        .menu-buttons.secondary .scratch-btn {
+            font-size: 1.1rem;
+            padding: 14px 25px;
+        }
+
+        /* Adult/Remix section - subtle, at bottom */
+        .adult-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .remix-link {
+            background: transparent;
+            border: 1px solid rgba(243, 156, 18, 0.3);
+            color: rgba(243, 156, 18, 0.8);
+            font-size: 0.9rem;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .remix-link:hover {
+            background: rgba(243, 156, 18, 0.15);
+            border-color: rgba(243, 156, 18, 0.5);
+            color: #F39C12;
+        }
+
+        .key {
+            background: rgba(233, 69, 96, 0.3);
+            border: 1px solid rgba(233, 69, 96, 0.5);
+            padding: 3px 9px;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #ff6b6b;
+        }
+
+        /* REMIX PANEL */
+        #remix-panel {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            z-index: 100;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .remix-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .remix-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .remix-header h2 {
+            color: #fff;
+            font-size: 2.5rem;
+            text-shadow: 0 0 30px #F39C12;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .upload-section {
+            background: rgba(255,255,255,0.05);
+            border: 2px dashed rgba(255,255,255,0.2);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .upload-section:hover {
+            border-color: rgba(243, 156, 18, 0.5);
+            background: rgba(243, 156, 18, 0.1);
+        }
+
+        .upload-section.dragover {
+            border-color: #F39C12;
+            background: rgba(243, 156, 18, 0.2);
+        }
+
+        .upload-section h3 {
+            color: #F39C12;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .upload-section p {
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 20px;
+        }
+
+        .upload-section input[type="file"] {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #F39C12, #E67E22);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(243, 156, 18, 0.5);
+        }
+
+        .file-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            color: #4ECDC4;
+            font-family: monospace;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .example-box {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .example-box h4 {
+            color: #4ECDC4;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .example-box pre {
+            background: rgba(0,0,0,0.5);
+            padding: 15px;
+            border-radius: 10px;
+            overflow-x: auto;
+            color: rgba(255,255,255,0.9);
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .example-box code {
+            color: #FFE66D;
+        }
+
+        .loaded-items {
+            margin-top: 20px;
+        }
+
+        .loaded-item {
+            background: rgba(78, 205, 196, 0.2);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .loaded-item .name {
+            color: white;
+            font-weight: 600;
+        }
+
+        .loaded-item .meta {
+            color: rgba(255,255,255,0.6);
+            font-size: 0.85rem;
+        }
+
+        .loaded-item .use-btn {
+            background: #4ECDC4;
+            color: #1a1a2e;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .loaded-item .use-btn:hover {
+            background: #3db3ab;
+        }
+
+        /* GAME SCREEN */
+        #game {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #canvas {
+            display: block;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0a0a0f 100%);
+        }
+
+        /* HUD - Neon style */
+        #hud {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 10;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        #hud .stat {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1rem;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #hud .stat span:first-child {
+            font-size: 1.2rem;
+        }
+
+        #hud .stat.ai-active {
+            border-color: rgba(78, 205, 196, 0.5);
+            box-shadow: 0 0 15px rgba(78, 205, 196, 0.3);
+        }
+
+        /* Menu button in game */
+        #menu-btn {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            border: none;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s;
+        }
+
+        #menu-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(233, 69, 96, 0.5);
+        }
+
+        #menu-btn:active {
+            transform: translateY(1px);
+        }
+
+        /* TOOLBAR - Big kid-friendly buttons! */
+        #toolbar {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid rgba(255,255,255,0.15);
+            padding: 15px 25px;
+            border-radius: 40px;
+            backdrop-filter: blur(15px);
+            z-index: 10;
+        }
+
+        .tool {
+            width: 70px;
+            height: 70px;
+            border-radius: 20px;
+            border: 4px solid transparent;
+            cursor: pointer;
+            font-size: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            background: rgba(255,255,255,0.08);
+        }
+
+        .tool:hover {
+            background: rgba(255,255,255,0.15);
+            transform: scale(1.15);
+        }
+
+        .tool:active {
+            transform: scale(0.95);
+        }
+
+        .tool.active {
+            border-color: #e94560;
+            background: rgba(233, 69, 96, 0.25);
+            box-shadow: 0 0 25px rgba(233, 69, 96, 0.5);
+            transform: scale(1.05);
+        }
+
+        .tool.custom {
+            border-color: #F39C12;
+            background: rgba(243, 156, 18, 0.1);
+        }
+
+        .tool.custom.active {
+            background: rgba(243, 156, 18, 0.3);
+            box-shadow: 0 0 25px rgba(243, 156, 18, 0.5);
+        }
+
+        /* PAUSE MENU */
+        #pause {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            z-index: 50;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pause-card {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 30px;
+            padding: 40px 50px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .pause-card h2 {
+            color: #fff;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            text-shadow: 0 0 30px rgba(233, 69, 96, 0.5);
+        }
+
+        .pause-card .menu-buttons {
+            align-items: center;
+        }
+
+        /* Loading */
+        #loading {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 200;
+        }
+
+        .loading-icon {
+            font-size: 80px;
+            animation: pulse 1s ease-in-out infinite;
+            filter: drop-shadow(0 0 30px rgba(233, 69, 96, 0.6));
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        #loading p {
+            color: rgba(255,255,255,0.7);
+            margin-top: 20px;
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(78, 205, 196, 0.95);
+            color: #1a1a2e;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-weight: 600;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+        }
+
+        .toast.error {
+            background: rgba(233, 69, 96, 0.95);
+            color: white;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOADING -->
+    <div id="loading">
+        <div class="loading-icon">🎮</div>
+        <p>Loading<span class="loading-dots"></span></p>
+    </div>
+
+    <!-- MENU -->
+    <div id="menu" style="display: none;">
+        <div class="menu-icon">🎮</div>
+        <h1>Physics Sandbox</h1>
+        <p class="subtitle">Drop stuff and watch it bounce!</p>
+
+        <!-- BIG PLAY BUTTON FOR KIDS - Just click and go! -->
+        <button class="scratch-btn giant-play" onclick="startGame('sandbox')">
+            <span>▶️</span> PLAY!
+        </button>
+
+        <!-- Secondary options - still kid-friendly -->
+        <div class="menu-buttons secondary">
+            <button class="scratch-btn cyan" onclick="startGame('demo')">
+                <span>🎬</span> Watch Demo
+            </button>
+            <button class="scratch-btn purple" onclick="startGame('challenge')">
+                <span>🏆</span> Challenges
+            </button>
+        </div>
+
+        <!-- Subtle remix link for adults - small, at the bottom -->
+        <div class="adult-section">
+            <button class="remix-link" onclick="showRemixPanel()">
+                🔧 Parents/Teachers: Remix & Customize →
+            </button>
+        </div>
+    </div>
+
+    <!-- REMIX PANEL -->
+    <div id="remix-panel">
+        <div class="remix-content">
+            <div class="remix-header">
+                <button class="back-btn" onclick="hideRemixPanel()">
+                    <span>←</span> Back
+                </button>
+                <h2>🔧 Remix Workshop</h2>
+            </div>
+
+            <!-- YAML Upload -->
+            <div class="upload-section" id="yaml-drop" ondrop="handleYamlDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                <h3>📄 Load Contraption (YAML)</h3>
+                <p>Upload a YAML file to load a pre-built scene with objects and settings</p>
+                <input type="file" id="yaml-input" accept=".yaml,.yml" onchange="handleYamlUpload(event)">
+                <button class="upload-btn" onclick="document.getElementById('yaml-input').click()">
+                    📁 Choose YAML File
+                </button>
+                <div class="file-info" id="yaml-info"></div>
+            </div>
+
+            <!-- APR Model Upload -->
+            <div class="upload-section" id="apr-drop" ondrop="handleAprDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                <h3>🤖 Load AI Model (.apr)</h3>
+                <p>Upload an Aprender model to add smart behaviors to your objects</p>
+                <input type="file" id="apr-input" accept=".apr" onchange="handleAprUpload(event)">
+                <button class="upload-btn" onclick="document.getElementById('apr-input').click()">
+                    📁 Choose .apr Model
+                </button>
+                <div class="file-info" id="apr-info"></div>
+            </div>
+
+            <!-- Loaded Items -->
+            <div class="loaded-items" id="loaded-items"></div>
+
+            <!-- Example YAML -->
+            <div class="example-box">
+                <h4>📝 Example YAML Format</h4>
+                <pre><code># my-contraption.yaml
+name: "Domino Rally"
+author: "Your Name"
+gravity: 0.5
+objects:
+  - type: ball
+    x: 100
+    y: 50
+    radius: 25
+    color: "#e94560"
+
+  - type: ramp
+    x: 200
+    y: 300
+    width: 150
+    rotation: -0.3
+
+  - type: domino
+    x: 350
+    y: 450
+    count: 5        # Creates 5 dominoes in a row
+    spacing: 30
+
+  - type: bomb
+    x: 600
+    y: 100
+    fuse: 180       # Frames until explosion
+
+ai_behaviors:
+  - model: "seeker.apr"
+    target: ball
+    speed: 2</code></pre>
+            </div>
+
+            <!-- Example APR -->
+            <div class="example-box">
+                <h4>🤖 About .apr Models</h4>
+                <pre><code># .apr files are Aprender AI models that can:
+
+• Make objects follow targets (seeker behavior)
+• Avoid obstacles (pathfinding)
+• React to explosions (flee behavior)
+• Chain reactions (trigger behaviors)
+
+# Load pre-trained models or train your own!
+# See: github.com/paiml/aprender</code></pre>
+            </div>
+
+            <!-- Start with loaded content -->
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="scratch-btn" onclick="startWithRemix()">
+                    <span>🚀</span> Play with Remix!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME -->
+    <div id="game">
+        <canvas id="canvas"></canvas>
+
+        <div id="hud">
+            <div class="stat"><span>📦</span> <span id="obj-count">0</span></div>
+            <div class="stat"><span>⚡</span> <span id="fps">60</span> FPS</div>
+            <div class="stat ai-active" id="ai-status" style="display: none;">
+                <span>🤖</span> <span id="ai-name">AI Active</span>
+            </div>
+        </div>
+
+        <button id="menu-btn" onclick="backToMenu()">
+            <span>☰</span> Menu
+        </button>
+
+        <!-- TOOLBAR - Kid-friendly big icons! -->
+        <div id="toolbar">
+            <div class="tool active" data-tool="ball" onclick="selectTool('ball')" title="Ball">
+                🔴
+            </div>
+            <div class="tool" data-tool="box" onclick="selectTool('box')" title="Box">
+                📦
+            </div>
+            <div class="tool" data-tool="domino" onclick="selectTool('domino')" title="Domino">
+                🀱
+            </div>
+            <div class="tool" data-tool="ramp" onclick="selectTool('ramp')" title="Ramp">
+                📐
+            </div>
+            <div class="tool" data-tool="bomb" onclick="selectTool('bomb')" title="Bomb">
+                💣
+            </div>
+        </div>
+    </div>
+
+    <!-- PAUSE -->
+    <div id="pause">
+        <div class="pause-card">
+            <h2>⏸️ Paused</h2>
+            <div class="menu-buttons">
+                <button class="scratch-btn" onclick="resumeGame()">
+                    <span>▶️</span> Resume
+                </button>
+                <button class="scratch-btn cyan" onclick="backToMenu()">
+                    <span>🏠</span> Main Menu
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, {
+            get_engine_version,
+            get_max_objects
+        } from './pkg/physics_sandbox_demo.js';
+
+        // Game state
+        let objects = [];
+        let currentTool = 'ball';
+        let paused = false;
+        let gravity = 0.5;
+        let lastTime = 0;
+        let frameCount = 0;
+        let fps = 60;
+
+        // Remix state
+        let loadedYaml = null;
+        let loadedApr = null;
+        let aiBehaviors = [];
+        let customTools = [];
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Neon colors
+        const colors = {
+            ball: ['#e94560', '#ff6b6b', '#4ECDC4', '#FFE66D', '#95E1D3', '#F38181', '#AA96DA'],
+            box: ['#F39C12', '#E67E22', '#D35400', '#F1C40F'],
+            domino: ['#3498DB', '#2980B9', '#1ABC9C', '#16A085'],
+            ramp: ['#9B59B6', '#8E44AD', '#673AB7', '#5E35B1'],
+            bomb: ['#2C3E50', '#34495E', '#1A1A2E']
+        };
+
+        // Toast notification
+        function showToast(message, isError = false) {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.className = 'toast' + (isError ? ' error' : '');
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // YAML Parser (simple)
+        function parseYaml(text) {
+            const result = { objects: [], ai_behaviors: [] };
+            const lines = text.split('\n');
+            let currentObject = null;
+            let inObjects = false;
+            let inAi = false;
+
+            for (let line of lines) {
+                line = line.replace(/#.*$/, ''); // Remove comments
+                if (!line.trim()) continue;
+
+                const indent = line.search(/\S/);
+
+                if (line.includes('name:')) {
+                    result.name = line.split(':')[1].trim().replace(/["']/g, '');
+                } else if (line.includes('author:')) {
+                    result.author = line.split(':')[1].trim().replace(/["']/g, '');
+                } else if (line.includes('gravity:')) {
+                    result.gravity = parseFloat(line.split(':')[1].trim());
+                } else if (line.trim() === 'objects:') {
+                    inObjects = true;
+                    inAi = false;
+                } else if (line.trim() === 'ai_behaviors:') {
+                    inAi = true;
+                    inObjects = false;
+                } else if (line.trim().startsWith('- type:')) {
+                    if (currentObject) result.objects.push(currentObject);
+                    currentObject = { type: line.split(':')[1].trim() };
+                } else if (line.trim().startsWith('- model:')) {
+                    currentObject = { model: line.split(':')[1].trim().replace(/["']/g, '') };
+                    result.ai_behaviors.push(currentObject);
+                    currentObject = null;
+                } else if (currentObject && line.includes(':')) {
+                    const [key, value] = line.split(':').map(s => s.trim());
+                    let val = value.replace(/["']/g, '');
+                    if (!isNaN(val)) val = parseFloat(val);
+                    currentObject[key] = val;
+                }
+            }
+            if (currentObject && inObjects) result.objects.push(currentObject);
+
+            return result;
+        }
+
+        // Handle YAML upload
+        window.handleYamlUpload = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    loadedYaml = parseYaml(e.target.result);
+                    document.getElementById('yaml-info').innerHTML = `
+                        <strong>✅ Loaded:</strong> ${loadedYaml.name || file.name}<br>
+                        <strong>Author:</strong> ${loadedYaml.author || 'Unknown'}<br>
+                        <strong>Objects:</strong> ${loadedYaml.objects.length}
+                    `;
+                    document.getElementById('yaml-info').classList.add('show');
+                    showToast(`Loaded ${loadedYaml.name || file.name}!`);
+                    updateLoadedItems();
+                } catch (err) {
+                    showToast('Error parsing YAML: ' + err.message, true);
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        // Handle APR upload
+        window.handleAprUpload = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    // For now, store the binary data
+                    loadedApr = {
+                        name: file.name,
+                        data: e.target.result,
+                        size: file.size
+                    };
+                    document.getElementById('apr-info').innerHTML = `
+                        <strong>✅ Loaded:</strong> ${file.name}<br>
+                        <strong>Size:</strong> ${(file.size / 1024).toFixed(1)} KB
+                    `;
+                    document.getElementById('apr-info').classList.add('show');
+                    showToast(`AI Model ${file.name} loaded!`);
+                    updateLoadedItems();
+                } catch (err) {
+                    showToast('Error loading .apr: ' + err.message, true);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        // Drag and drop handlers
+        window.handleDragOver = function(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('dragover');
+        };
+
+        window.handleDragLeave = function(event) {
+            event.currentTarget.classList.remove('dragover');
+        };
+
+        window.handleYamlDrop = function(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('dragover');
+            const file = event.dataTransfer.files[0];
+            if (file && (file.name.endsWith('.yaml') || file.name.endsWith('.yml'))) {
+                document.getElementById('yaml-input').files = event.dataTransfer.files;
+                handleYamlUpload({ target: { files: [file] } });
+            }
+        };
+
+        window.handleAprDrop = function(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('dragover');
+            const file = event.dataTransfer.files[0];
+            if (file && file.name.endsWith('.apr')) {
+                document.getElementById('apr-input').files = event.dataTransfer.files;
+                handleAprUpload({ target: { files: [file] } });
+            }
+        };
+
+        function updateLoadedItems() {
+            const container = document.getElementById('loaded-items');
+            container.innerHTML = '';
+
+            if (loadedYaml) {
+                container.innerHTML += `
+                    <div class="loaded-item">
+                        <div>
+                            <div class="name">📄 ${loadedYaml.name || 'Contraption'}</div>
+                            <div class="meta">${loadedYaml.objects.length} objects</div>
+                        </div>
+                        <button class="use-btn" onclick="previewYaml()">Preview</button>
+                    </div>
+                `;
+            }
+
+            if (loadedApr) {
+                container.innerHTML += `
+                    <div class="loaded-item">
+                        <div>
+                            <div class="name">🤖 ${loadedApr.name}</div>
+                            <div class="meta">${(loadedApr.size / 1024).toFixed(1)} KB</div>
+                        </div>
+                        <button class="use-btn" onclick="activateAI()">Activate</button>
+                    </div>
+                `;
+            }
+        }
+
+        window.previewYaml = function() {
+            if (!loadedYaml) return;
+            showToast('Preview: ' + loadedYaml.objects.map(o => o.type).join(', '));
+        };
+
+        window.activateAI = function() {
+            if (!loadedApr) return;
+            showToast('AI Model activated: ' + loadedApr.name);
+        };
+
+        // Remix panel
+        window.showRemixPanel = function() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('remix-panel').style.display = 'block';
+        };
+
+        window.hideRemixPanel = function() {
+            document.getElementById('remix-panel').style.display = 'none';
+            document.getElementById('menu').style.display = 'flex';
+        };
+
+        // Start game with remix content
+        window.startWithRemix = function() {
+            document.getElementById('remix-panel').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            objects = [];
+
+            // Apply gravity from YAML
+            if (loadedYaml && loadedYaml.gravity) {
+                gravity = loadedYaml.gravity;
+            }
+
+            // Spawn objects from YAML
+            if (loadedYaml && loadedYaml.objects) {
+                loadedYaml.objects.forEach(obj => {
+                    if (obj.count) {
+                        // Multiple objects
+                        for (let i = 0; i < obj.count; i++) {
+                            createObjectFromYaml({
+                                ...obj,
+                                x: obj.x + (i * (obj.spacing || 30))
+                            });
+                        }
+                    } else {
+                        createObjectFromYaml(obj);
+                    }
+                });
+            }
+
+            // Show AI status if model loaded
+            if (loadedApr) {
+                document.getElementById('ai-status').style.display = 'flex';
+                document.getElementById('ai-name').textContent = loadedApr.name;
+                aiBehaviors = loadedYaml?.ai_behaviors || [];
+            }
+
+            updateHUD();
+        };
+
+        function createObjectFromYaml(def) {
+            const type = def.type;
+            const color = def.color || colors[type]?.[0] || '#e94560';
+
+            const obj = {
+                type,
+                x: def.x || canvas.width / 2,
+                y: def.y || 100,
+                vx: def.vx || 0,
+                vy: def.vy || 0,
+                rotation: def.rotation || 0,
+                rotationSpeed: def.rotationSpeed || 0,
+                color,
+                alive: true
+            };
+
+            switch(type) {
+                case 'ball':
+                    obj.radius = def.radius || 20;
+                    obj.mass = obj.radius * 0.1;
+                    break;
+                case 'box':
+                    obj.width = def.width || 40;
+                    obj.height = def.height || 40;
+                    obj.mass = (obj.width * obj.height) * 0.01;
+                    break;
+                case 'domino':
+                    obj.width = def.width || 12;
+                    obj.height = def.height || 50;
+                    obj.mass = 0.5;
+                    break;
+                case 'ramp':
+                    obj.width = def.width || 150;
+                    obj.height = def.height || 20;
+                    obj.isStatic = true;
+                    break;
+                case 'bomb':
+                    obj.radius = def.radius || 25;
+                    obj.mass = 2;
+                    obj.fuse = def.fuse || 120;
+                    break;
+            }
+
+            objects.push(obj);
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function createObject(type, x, y) {
+            const color = colors[type][Math.floor(Math.random() * colors[type].length)];
+
+            const obj = {
+                type,
+                x,
+                y,
+                vx: (Math.random() - 0.5) * 2,
+                vy: 0,
+                rotation: 0,
+                rotationSpeed: (Math.random() - 0.5) * 0.1,
+                color,
+                alive: true
+            };
+
+            switch(type) {
+                case 'ball':
+                    obj.radius = 15 + Math.random() * 20;
+                    obj.mass = obj.radius * 0.1;
+                    break;
+                case 'box':
+                    obj.width = 30 + Math.random() * 30;
+                    obj.height = 30 + Math.random() * 30;
+                    obj.mass = (obj.width * obj.height) * 0.01;
+                    break;
+                case 'domino':
+                    obj.width = 12;
+                    obj.height = 50;
+                    obj.mass = 0.5;
+                    break;
+                case 'ramp':
+                    obj.width = 100 + Math.random() * 100;
+                    obj.height = 20;
+                    obj.rotation = (Math.random() - 0.5) * 0.5;
+                    obj.rotationSpeed = 0;
+                    obj.isStatic = true;
+                    break;
+                case 'bomb':
+                    obj.radius = 25;
+                    obj.mass = 2;
+                    obj.fuse = 120;
+                    break;
+            }
+
+            objects.push(obj);
+            updateHUD();
+        }
+
+        function explode(bomb) {
+            const explosionForce = 30;
+            const explosionRadius = 200;
+
+            canvas.style.transform = `translate(${(Math.random()-0.5)*20}px, ${(Math.random()-0.5)*20}px)`;
+            setTimeout(() => canvas.style.transform = '', 50);
+
+            objects.forEach(obj => {
+                if (obj === bomb || obj.isStatic) return;
+                const dx = obj.x - bomb.x;
+                const dy = obj.y - bomb.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < explosionRadius && dist > 0) {
+                    const force = (1 - dist/explosionRadius) * explosionForce;
+                    obj.vx += (dx/dist) * force;
+                    obj.vy += (dy/dist) * force;
+                }
+            });
+
+            for (let i = 0; i < 40; i++) {
+                const angle = (Math.PI * 2 * i) / 40 + Math.random() * 0.3;
+                const speed = 5 + Math.random() * 12;
+                objects.push({
+                    type: 'particle',
+                    x: bomb.x,
+                    y: bomb.y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 4 + Math.random() * 8,
+                    color: ['#FFE66D', '#FF6B6B', '#FF8C42', '#FFF', '#e94560'][Math.floor(Math.random()*5)],
+                    life: 60,
+                    alive: true
+                });
+            }
+
+            bomb.alive = false;
+        }
+
+        // Simple AI behavior update
+        function updateAI() {
+            if (!loadedApr || aiBehaviors.length === 0) return;
+
+            // Find target (first ball)
+            const target = objects.find(o => o.type === 'ball' && o.alive);
+            if (!target) return;
+
+            // Apply simple seeker behavior to boxes
+            objects.forEach(obj => {
+                if (obj.type === 'box' && obj.alive && !obj.isStatic) {
+                    const dx = target.x - obj.x;
+                    const dy = target.y - obj.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist > 50) {
+                        obj.vx += (dx / dist) * 0.3;
+                        obj.vy += (dy / dist) * 0.1;
+                    }
+                }
+            });
+        }
+
+        function update() {
+            if (paused) return;
+
+            updateAI();
+
+            const groundY = canvas.height - 50;
+
+            objects.forEach(obj => {
+                if (!obj.alive || obj.isStatic) return;
+
+                if (obj.type === 'particle') {
+                    obj.life--;
+                    if (obj.life <= 0) obj.alive = false;
+                    obj.vy += gravity * 0.3;
+                    obj.x += obj.vx;
+                    obj.y += obj.vy;
+                    obj.vx *= 0.98;
+                    return;
+                }
+
+                if (obj.type === 'bomb') {
+                    obj.fuse--;
+                    if (obj.fuse <= 0) {
+                        explode(obj);
+                        return;
+                    }
+                }
+
+                obj.vy += gravity;
+                obj.vx *= 0.99;
+                obj.vy *= 0.99;
+
+                obj.x += obj.vx;
+                obj.y += obj.vy;
+                obj.rotation += obj.rotationSpeed;
+
+                const bottom = obj.radius || obj.height/2;
+                if (obj.y + bottom > groundY) {
+                    obj.y = groundY - bottom;
+                    obj.vy *= -0.6;
+                    obj.vx *= 0.8;
+                    obj.rotationSpeed *= 0.9;
+                    if (Math.abs(obj.vy) < 0.5) obj.vy = 0;
+                }
+
+                const right = obj.radius || obj.width/2;
+                if (obj.x - right < 0) {
+                    obj.x = right;
+                    obj.vx *= -0.7;
+                }
+                if (obj.x + right > canvas.width) {
+                    obj.x = canvas.width - right;
+                    obj.vx *= -0.7;
+                }
+
+                if (obj.type === 'ball') {
+                    objects.forEach(other => {
+                        if (other === obj || !other.alive || other.type === 'particle') return;
+
+                        const dx = other.x - obj.x;
+                        const dy = other.y - obj.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        const minDist = (obj.radius || 20) + (other.radius || 20);
+
+                        if (dist < minDist && dist > 0) {
+                            const overlap = minDist - dist;
+                            const nx = dx / dist;
+                            const ny = dy / dist;
+
+                            obj.x -= nx * overlap * 0.5;
+                            obj.y -= ny * overlap * 0.5;
+
+                            if (!other.isStatic) {
+                                other.x += nx * overlap * 0.5;
+                                other.y += ny * overlap * 0.5;
+                            }
+
+                            const dvx = obj.vx - (other.vx || 0);
+                            const dvy = obj.vy - (other.vy || 0);
+                            const dvn = dvx * nx + dvy * ny;
+
+                            if (dvn > 0) {
+                                obj.vx -= nx * dvn * 0.8;
+                                obj.vy -= ny * dvn * 0.8;
+                                if (!other.isStatic) {
+                                    other.vx += nx * dvn * 0.4;
+                                    other.vy += ny * dvn * 0.4;
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+
+            objects = objects.filter(o => o.alive);
+            updateHUD();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bgGrad.addColorStop(0, '#1a1a2e');
+            bgGrad.addColorStop(1, '#0a0a0f');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#16213e';
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+
+            ctx.shadowColor = '#e94560';
+            ctx.shadowBlur = 15;
+            ctx.fillStyle = '#e94560';
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 3);
+            ctx.shadowBlur = 0;
+
+            objects.forEach(obj => {
+                if (!obj.alive) return;
+
+                ctx.save();
+                ctx.translate(obj.x, obj.y);
+                ctx.rotate(obj.rotation || 0);
+
+                if (obj.type === 'particle') {
+                    ctx.globalAlpha = obj.life / 60;
+                    ctx.shadowColor = obj.color;
+                    ctx.shadowBlur = 10;
+                }
+
+                ctx.fillStyle = obj.color;
+
+                switch(obj.type) {
+                    case 'ball':
+                    case 'particle':
+                        if (obj.type === 'ball') {
+                            ctx.shadowColor = obj.color;
+                            ctx.shadowBlur = 20;
+                        }
+
+                        ctx.beginPath();
+                        ctx.arc(0, 0, obj.radius, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        if (obj.type === 'ball') {
+                            ctx.shadowBlur = 0;
+                            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                            ctx.beginPath();
+                            ctx.arc(-obj.radius*0.3, -obj.radius*0.3, obj.radius*0.35, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        break;
+
+                    case 'box':
+                        ctx.shadowColor = obj.color;
+                        ctx.shadowBlur = 15;
+                        ctx.fillRect(-obj.width/2, -obj.height/2, obj.width, obj.height);
+
+                        ctx.shadowBlur = 0;
+                        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                        ctx.fillRect(-obj.width/2, -obj.height/2, obj.width, 8);
+                        ctx.fillRect(-obj.width/2, -obj.height/2, 8, obj.height);
+                        break;
+
+                    case 'domino':
+                        ctx.shadowColor = obj.color;
+                        ctx.shadowBlur = 10;
+                        ctx.fillStyle = obj.color;
+                        ctx.beginPath();
+                        ctx.roundRect(-obj.width/2, -obj.height/2, obj.width, obj.height, 3);
+                        ctx.fill();
+
+                        ctx.shadowBlur = 0;
+                        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                        ctx.beginPath();
+                        ctx.arc(0, -obj.height/4, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.arc(0, obj.height/4, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+
+                    case 'ramp':
+                        ctx.shadowColor = obj.color;
+                        ctx.shadowBlur = 15;
+                        ctx.fillStyle = obj.color;
+                        ctx.beginPath();
+                        ctx.moveTo(-obj.width/2, obj.height/2);
+                        ctx.lineTo(obj.width/2, obj.height/2);
+                        ctx.lineTo(obj.width/2, -obj.height/2);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        ctx.shadowBlur = 0;
+                        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(-obj.width/2 + 5, obj.height/2 - 3);
+                        ctx.lineTo(obj.width/2 - 3, -obj.height/2 + 5);
+                        ctx.stroke();
+                        break;
+
+                    case 'bomb':
+                        if (obj.fuse < 30 && obj.fuse % 6 < 3) {
+                            ctx.fillStyle = '#FF0000';
+                            ctx.shadowColor = '#FF0000';
+                        } else {
+                            ctx.shadowColor = '#e94560';
+                        }
+                        ctx.shadowBlur = 20;
+
+                        ctx.beginPath();
+                        ctx.arc(0, 0, obj.radius, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.shadowBlur = 0;
+                        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                        ctx.beginPath();
+                        ctx.arc(-obj.radius*0.3, -obj.radius*0.3, obj.radius*0.4, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.strokeStyle = '#8B4513';
+                        ctx.lineWidth = 4;
+                        ctx.beginPath();
+                        ctx.moveTo(0, -obj.radius);
+                        ctx.quadraticCurveTo(10, -obj.radius - 15, 5, -obj.radius - 20);
+                        ctx.stroke();
+
+                        if (obj.fuse % 8 < 4) {
+                            ctx.shadowColor = '#FFE66D';
+                            ctx.shadowBlur = 15;
+                            ctx.fillStyle = '#FFE66D';
+                            ctx.beginPath();
+                            ctx.arc(5, -obj.radius - 20, 6, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.fillStyle = '#FFF';
+                            ctx.beginPath();
+                            ctx.arc(5, -obj.radius - 20, 3, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        break;
+                }
+
+                ctx.restore();
+            });
+
+            if (window.mouseX && window.mouseY && !paused) {
+                ctx.globalAlpha = 0.4;
+                ctx.shadowColor = colors[currentTool][0];
+                ctx.shadowBlur = 20;
+                ctx.fillStyle = colors[currentTool][0];
+                ctx.beginPath();
+                ctx.arc(window.mouseX, window.mouseY, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function gameLoop(timestamp) {
+            frameCount++;
+            if (timestamp - lastTime >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastTime = timestamp;
+                document.getElementById('fps').textContent = fps;
+            }
+
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateHUD() {
+            document.getElementById('obj-count').textContent = objects.filter(o => o.type !== 'particle').length;
+        }
+
+        function selectTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
+        }
+
+        window.selectTool = selectTool;
+
+        window.startGame = function(mode) {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            document.getElementById('ai-status').style.display = 'none';
+            objects = [];
+            gravity = 0.5;
+
+            if (mode === 'demo') {
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => {
+                        createObject('ball', 100 + i * 120, 50 + Math.random() * 100);
+                    }, i * 150);
+                }
+                setTimeout(() => createObject('ramp', 300, 350), 1500);
+                setTimeout(() => createObject('ramp', 700, 300), 1700);
+                setTimeout(() => createObject('bomb', 500, 80), 2500);
+            }
+
+            if (mode === 'challenge') {
+                createObject('ramp', 200, 400);
+                createObject('ramp', 600, 350);
+                for (let i = 0; i < 5; i++) {
+                    const obj = { type: 'domino', x: 350 + i * 30, y: canvas.height - 75, vx: 0, vy: 0, rotation: 0, rotationSpeed: 0, width: 12, height: 50, mass: 0.5, color: colors.domino[i % colors.domino.length], alive: true };
+                    objects.push(obj);
+                }
+                updateHUD();
+            }
+        };
+
+        window.resumeGame = function() {
+            paused = false;
+            document.getElementById('pause').style.display = 'none';
+        };
+
+        window.backToMenu = function() {
+            paused = false;
+            objects = [];
+            document.getElementById('pause').style.display = 'none';
+            document.getElementById('game').style.display = 'none';
+            document.getElementById('menu').style.display = 'flex';
+            document.getElementById('ai-status').style.display = 'none';
+        };
+
+        canvas.addEventListener('click', (e) => {
+            if (paused) return;
+            createObject(currentTool, e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            window.mouseX = e.clientX;
+            window.mouseY = e.clientY;
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                paused = !paused;
+                document.getElementById('pause').style.display = paused ? 'flex' : 'none';
+            }
+            if (e.code === 'KeyC') {
+                objects = [];
+                updateHUD();
+            }
+            if (e.code === 'Escape') {
+                backToMenu();
+            }
+            if (e.key >= '1' && e.key <= '5') {
+                const tools = ['ball', 'box', 'domino', 'ramp', 'bomb'];
+                selectTool(tools[parseInt(e.key) - 1]);
+            }
+        });
+
+        async function init_game() {
+            try {
+                await init();
+                console.log('WASM loaded!');
+            } catch(e) {
+                console.log('Running without WASM');
+            }
+
+            resize();
+            window.addEventListener('resize', resize);
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('menu').style.display = 'flex';
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        init_game();
+    </script>
+</body>
+</html>
