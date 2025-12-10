@@ -52,6 +52,7 @@ impl UiContainer {
     }
 
     /// Updates the viewport size
+    #[allow(clippy::missing_const_for_fn)]
     pub fn set_viewport_size(&mut self, width: f32, height: f32) {
         self.viewport_size = Vec2::new(width, height);
     }

@@ -323,12 +323,13 @@ impl AudioSystem {
     }
 
     /// Gets the listener mutably
+    #[allow(clippy::missing_const_for_fn)]
     pub fn listener_mut(&mut self) -> &mut AudioListener {
         &mut self.listener
     }
 
     /// Sets the listener position
-    pub fn set_listener_position(&mut self, position: Vec2) {
+    pub const fn set_listener_position(&mut self, position: Vec2) {
         self.listener.position = position;
     }
 
@@ -339,6 +340,7 @@ impl AudioSystem {
     }
 
     /// Gets channel volumes mutably
+    #[allow(clippy::missing_const_for_fn)]
     pub fn volumes_mut(&mut self) -> &mut ChannelVolumes {
         &mut self.volumes
     }

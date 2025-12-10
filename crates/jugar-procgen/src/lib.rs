@@ -53,7 +53,7 @@ impl Rng {
     }
 
     /// Generates the next random u64
-    pub fn next_u64(&mut self) -> u64 {
+    pub const fn next_u64(&mut self) -> u64 {
         self.state ^= self.state << 13;
         self.state ^= self.state >> 7;
         self.state ^= self.state << 17;
@@ -72,12 +72,14 @@ impl Rng {
     }
 
     /// Generates a random usize in [0, max)
-    pub fn next_usize(&mut self, max: usize) -> usize {
+    #[allow(clippy::cast_possible_truncation)]
+    pub const fn next_usize(&mut self, max: usize) -> usize {
         (self.next_u64() as usize) % max
     }
 
     /// Generates a random i32 in [min, max)
-    pub fn range_i32(&mut self, min: i32, max: i32) -> i32 {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    pub const fn range_i32(&mut self, min: i32, max: i32) -> i32 {
         min + (self.next_usize((max - min) as usize) as i32)
     }
 
@@ -632,6 +634,7 @@ impl Wfc {
     }
 
     /// Gets the adjacency rules for modification
+    #[allow(clippy::missing_const_for_fn)]
     pub fn rules_mut(&mut self) -> &mut AdjacencyRules {
         &mut self.rules
     }
