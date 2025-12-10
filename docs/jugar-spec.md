@@ -738,7 +738,96 @@ cargo test -p jugar-web --test proptest_game
 
 ---
 
-**Document Version**: 0.3.1
-**Last Updated**: 2025-12-09
+## 16. Probar: WASM-Native Testing Framework
+
+Probar (Spanish: "to test/prove") is the dedicated testing framework for Jugar games, providing **full Playwright feature parity** plus WASM-native capabilities.
+
+### 16.1 Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         PROBAR TESTING ARCHITECTURE                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────────┐       ┌────────────────────────────┐        │
+│  │    WasmRuntime (wasmtime)  │       │   BrowserController (CDP)  │        │
+│  │    ─────────────────────   │       │   ─────────────────────    │        │
+│  │    • Unit tests            │       │   • E2E tests              │        │
+│  │    • Deterministic replay  │       │   • Visual regression      │        │
+│  │    • Invariant fuzzing     │       │   • Production parity      │        │
+│  │    • Performance benchmarks│       │   • Browser compatibility  │        │
+│  └────────────────────────────┘       └────────────────────────────┘        │
+│              │                                     │                         │
+│              └─────────────┬───────────────────────┘                         │
+│                            │                                                 │
+│                    ┌───────▼───────┐                                         │
+│                    │  StateBridge  │                                         │
+│                    │  ───────────  │                                         │
+│                    │  Unified API  │                                         │
+│                    └───────────────┘                                         │
+│                                                                              │
+│  Toyota Way Principles:                                                      │
+│  • Poka-Yoke: Type-safe selectors (compile-time checked)                    │
+│  • Jidoka: Andon Cord fail-fast mode                                        │
+│  • Muda: Zero-copy memory inspection                                        │
+│  • Standardization: Test env = Production env                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 16.2 Quick Start
+
+```rust
+use jugar_probar::prelude::*;
+
+// Type-safe entity access (Poka-Yoke)
+#[derive(ProbarEntity)]
+struct Player;
+
+#[derive(ProbarComponent)]
+struct Position { x: f32, y: f32 }
+
+#[tokio::test]
+async fn test_player_movement() -> ProbarResult<()> {
+    let game = StateBridge::new();
+
+    // Compile-time checked selector (no typos possible!)
+    let player = game.entity::<Player>().await?;
+    let pos: Position = game.component::<Position>(player)?;
+
+    assert!(pos.x > 0.0);
+    Ok(())
+}
+```
+
+### 16.3 Features
+
+| Feature | Description | Toyota Principle |
+|---------|-------------|------------------|
+| Deterministic Replay | Record/playback with hash verification | Standardization |
+| Invariant Fuzzing | Property-based testing with random inputs | Kaizen |
+| Visual Regression | Pixel-diff with perceptual hashing (pHash) | Jidoka |
+| Accessibility Audit | WCAG 2.1 AA compliance checking | Poka-Yoke |
+| Andon Cord Mode | Fail-fast on first critical error | Jidoka |
+| Zero-Copy Inspection | Direct WASM memory access | Muda Elimination |
+
+### 16.4 Running Probar Examples
+
+```bash
+# Deterministic simulation and replay
+cargo run --example pong_simulation
+
+# Selector API demonstration
+cargo run --example locator_demo
+
+# WCAG accessibility checking
+cargo run --example accessibility_demo
+```
+
+See [probar-wasm-testing-spec.md](specifications/probar-wasm-testing-spec.md) for full specification.
+
+---
+
+**Document Version**: 0.3.2
+**Last Updated**: 2025-12-10
 **Authors**: PAIML Team
 **WOS Quality Lessons Applied**: PERFECTION-ACHIEVED-2025-10-25
