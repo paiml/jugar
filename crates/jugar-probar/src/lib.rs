@@ -35,7 +35,22 @@
 )]
 mod accessibility;
 mod assertion;
+#[allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::missing_const_for_fn,
+    clippy::doc_markdown
+)]
+mod bridge;
 mod browser;
+#[allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::missing_const_for_fn,
+    clippy::doc_markdown,
+    dead_code
+)]
+mod driver;
 mod event;
 mod fuzzer;
 mod harness;
@@ -47,7 +62,28 @@ mod harness;
     clippy::doc_markdown
 )]
 mod locator;
+#[allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::missing_const_for_fn,
+    clippy::doc_markdown,
+    clippy::cast_precision_loss,
+    clippy::format_push_string,
+    clippy::needless_raw_string_hashes
+)]
+mod reporter;
 mod result;
+#[allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::missing_const_for_fn,
+    clippy::unnecessary_wraps,
+    clippy::doc_markdown,
+    clippy::if_not_else,
+    clippy::ptr_as_ptr,
+    unsafe_code
+)]
+mod runtime;
 mod simulation;
 mod snapshot;
 mod visual_regression;
@@ -58,7 +94,17 @@ pub use accessibility::{
     Severity, MIN_CONTRAST_LARGE, MIN_CONTRAST_NORMAL, MIN_CONTRAST_UI,
 };
 pub use assertion::{Assertion, AssertionResult};
+pub use bridge::{
+    BridgeConnection, DiffRegion, EntitySnapshot, GameStateData, GameStateSnapshot, SnapshotCache,
+    StateBridge, VisualDiff,
+};
 pub use browser::{Browser, BrowserConfig, Page};
+#[cfg(feature = "browser")]
+pub use driver::{BrowserController, ProbarDriver};
+pub use driver::{
+    DeviceDescriptor, DriverConfig, ElementHandle, MockDriver, NetworkInterceptor, NetworkResponse,
+    PageMetrics, Screenshot,
+};
 pub use event::{InputEvent, Touch, TouchAction};
 pub use fuzzer::{
     FuzzerConfig, InputFuzzer, InvariantCheck, InvariantChecker, InvariantViolation, Seed,
@@ -69,7 +115,14 @@ pub use locator::{
     LocatorAction, LocatorOptions, LocatorQuery, Point, Selector, DEFAULT_POLL_INTERVAL_MS,
     DEFAULT_TIMEOUT_MS,
 };
+pub use reporter::{
+    AndonCordPulled, FailureMode, Reporter, TestResultEntry, TestStatus, TraceData,
+};
 pub use result::{ProbarError, ProbarResult};
+pub use runtime::{
+    ComponentId, EntityId, FrameResult, GameHostState, MemoryView, ProbarComponent, ProbarEntity,
+    RuntimeConfig, StateDelta, WasmRuntime,
+};
 pub use simulation::{
     run_replay, run_simulation, RandomWalkAgent, RecordedFrame, ReplayResult, SimulatedGameState,
     SimulationConfig, SimulationRecording,
@@ -81,12 +134,16 @@ pub use visual_regression::{ImageDiffResult, VisualRegressionConfig, VisualRegre
 pub mod prelude {
     pub use super::accessibility::*;
     pub use super::assertion::*;
+    pub use super::bridge::*;
     pub use super::browser::*;
+    pub use super::driver::*;
     pub use super::event::*;
     pub use super::fuzzer::*;
     pub use super::harness::*;
     pub use super::locator::*;
+    pub use super::reporter::*;
     pub use super::result::*;
+    pub use super::runtime::*;
     pub use super::simulation::*;
     pub use super::snapshot::*;
     pub use super::visual_regression::*;
