@@ -7,25 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-12-10
+
 ### Added
-- `jugar-web` crate for browser integration via Canvas2D JSON commands
-- Pong demo game with full game juice effects (screen shake, ball trail, particles)
-- trueno SIMD integration for batch physics operations (`simd.rs`)
-- WebGPU compute shader demonstration infrastructure (`compute.rs`)
-- Adaptive AI opponent with 10 difficulty levels
-- Procedural audio system with Web Audio API integration
-- Property-based testing with proptest (7 property tests)
-- Mutation testing support with cargo-mutants
-- Two-phase coverage reporting (bashrs/trueno pattern)
-- bashrs Makefile linting integration
-- Criterion benchmarks for performance regression testing
+- SHAP-style AI explainability widget showing real-time feature importance
+- `.apr` AI profile format with downloadable trained models
+- Three game modes: SinglePlayer, TwoPlayer, Demo
+- Touch and keyboard controls with fullscreen support
+- Rally counter and goal sound effects
+- Comprehensive Playwright browser tests (38 tests)
+- Load testing framework with chaos tests and drift detection
+
+### Fixed
+- SHAP widget positioning to not overlap AI difficulty controls
+- Sound button position calculation accounting for [I] hint spacing
+- AI +/- buttons moved right to not cover difficulty text
 
 ### Changed
-- Upgraded trueno dependency to 0.8
-- Upgraded aprender dependency to 0.16
-- Expanded test suite to 312 tests (95% coverage target)
+- Widget title from ".apr SHAP" to ".apr ML Model" for clarity
+- Test coverage increased to 676 tests (95% coverage)
 
-## [0.1.0] - 2024-12-09
+## [0.1.0] - 2025-12-09
 
 ### Added
 - Initial WASM-native game engine with ABSOLUTE ZERO JavaScript computation
