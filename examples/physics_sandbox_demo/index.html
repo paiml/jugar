@@ -612,6 +612,53 @@
             75% { content: '...'; }
         }
 
+        /* Back to home navigation */
+        .nav-back {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 150;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.8);
+            font-size: 0.9rem;
+            padding: 10px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-back:hover {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            transform: translateX(-3px);
+        }
+
+        /* Footer links */
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .footer-link {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-link:hover {
+            color: rgba(255,255,255,0.9);
+        }
+
         /* Toast notifications */
         .toast {
             position: fixed;
@@ -639,6 +686,11 @@
     </style>
 </head>
 <body>
+    <!-- BACK TO HOME NAVIGATION -->
+    <a href="https://interactive.paiml.com" class="nav-back">
+        ← Back to PAIML
+    </a>
+
     <!-- LOADING -->
     <div id="loading">
         <div class="loading-icon">🎮</div>
@@ -671,6 +723,11 @@
             <button class="remix-link" onclick="showRemixPanel()">
                 🔧 Parents/Teachers: Remix & Customize →
             </button>
+            <div class="footer-links">
+                <a href="https://github.com/paiml/jugar" target="_blank" class="footer-link">GitHub: jugar</a>
+                <a href="https://paiml.com" target="_blank" class="footer-link">PAIML.com</a>
+                <a href="https://interactive.paiml.com" target="_blank" class="footer-link">More Demos</a>
+            </div>
         </div>
     </div>
 
