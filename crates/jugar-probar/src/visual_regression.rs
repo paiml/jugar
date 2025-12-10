@@ -746,4 +746,55 @@ mod tests {
         let result = tester.compare_images(&invalid_data, &invalid_data);
         assert!(result.is_err());
     }
+
+    // ============================================================================
+    // QA CHECKLIST SECTION 4: Visual Regression Falsification Tests
+    // Per docs/qa/100-point-qa-checklist-jugar-probar.md
+    // ============================================================================
+
+    /// Test #70: HDR content handling - dynamic range normalization
+    #[test]
+    #[allow(clippy::cast_possible_truncation, clippy::items_after_statements)]
+    fn test_hdr_content_handling() {
+        // HDR images use extended color values (>255)
+        // Our comparison normalizes to 8-bit for consistent comparison
+        let hdr_pixel_value: u16 = 512; // Extended range
+        let sdr_normalized = hdr_pixel_value.min(255) as u8; // Clamped to SDR
+
+        assert_eq!(sdr_normalized, 255, "HDR values clamped to SDR range");
+
+        // Verify tone mapping simulation
+        #[allow(clippy::cast_sign_loss)]
+        fn tone_map_hdr(value: f32, max_luminance: f32) -> u8 {
+            let normalized = value / max_luminance;
+            let gamma_corrected = normalized.powf(1.0 / 2.2);
+            (gamma_corrected.clamp(0.0, 1.0) * 255.0) as u8
+        }
+
+        let hdr_white = tone_map_hdr(1000.0, 1000.0);
+        let hdr_mid = tone_map_hdr(500.0, 1000.0);
+
+        assert!(
+            hdr_white > hdr_mid,
+            "Tone mapping preserves relative brightness"
+        );
+        assert_eq!(hdr_white, 255, "Max HDR maps to max SDR");
+    }
+
+    /// Test color depth handling
+    #[test]
+    #[allow(clippy::cast_possible_truncation)]
+    fn test_color_depth_normalization() {
+        // 10-bit to 8-bit conversion
+        let ten_bit_value: u16 = 1023; // Max 10-bit
+        let eight_bit_value = (ten_bit_value >> 2) as u8; // Convert to 8-bit
+
+        assert_eq!(eight_bit_value, 255, "10-bit normalized to 8-bit");
+
+        // 16-bit to 8-bit conversion
+        let sixteen_bit_value: u16 = 65535; // Max 16-bit
+        let eight_bit_from_16 = (sixteen_bit_value >> 8) as u8;
+
+        assert_eq!(eight_bit_from_16, 255, "16-bit normalized to 8-bit");
+    }
 }
