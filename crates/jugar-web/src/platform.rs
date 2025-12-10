@@ -2519,7 +2519,7 @@ impl PongGame {
         // Widget dimensions - compact
         let widget_width = 200.0;
         let widget_height = 180.0;
-        let widget_y = 50.0; // Below speed buttons
+        let widget_y = 80.0; // Below mode buttons and AI difficulty row
 
         // Semi-transparent dark background
         frame.fill_rect(
