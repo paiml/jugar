@@ -11,6 +11,9 @@ members = [
     "crates/jugar-audio",
     "crates/jugar-procgen",
     "crates/jugar-web",
+    "crates/jugar-yaml",
+    "crates/jugar-apr",
+    "crates/jugar-probar",
     "examples/universal_pong",
 ]
 
@@ -27,8 +30,13 @@ categories = ["game-engines", "wasm", "graphics", "no-std"]
 
 [workspace.dependencies]
 # Core dependencies (from trueno/aprender ecosystem)
-trueno = "0.8"      # SIMD compute layer
-aprender = "0.6"    # AI/ML layer
+trueno = "0.8"       # SIMD compute layer
+aprender = "0.17"    # AI/ML layer (latest)
+
+# CDP/Browser testing
+chromiumoxide = { version = "0.8", default-features = false, features = ["tokio-runtime"] }
+tokio = { version = "1.42", features = ["rt-multi-thread", "macros", "sync", "time", "fs"] }
+futures = "0.3"
 
 # WASM dependencies
 wasm-bindgen = "0.2"
@@ -53,9 +61,28 @@ anyhow = "1.0"
 # Logging
 log = "0.4"
 
+# YAML parsing
+serde_yaml = "0.9"
+validator = { version = "0.19", features = ["derive"] }
+
 # Testing
 proptest = "1.5"
 criterion = "0.5"
+
+# Image comparison for visual regression
+image = "0.25"
+
+# CRC32 for checksums
+crc32fast = "1.4"
+
+# CBOR serialization
+ciborium = "0.2"
+
+# Base64 for export/sharing
+base64 = "0.22"
+
+# UUID for unique identifiers
+uuid = { version = "1.11", features = ["v4", "serde"] }
 
 [workspace.lints.rust]
 # Safety and correctness

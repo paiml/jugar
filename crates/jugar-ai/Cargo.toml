@@ -10,6 +10,8 @@ authors.workspace = true
 
 [dependencies]
 jugar-core = { version = "0.1", path = "../jugar-core" }
+jugar-apr = { version = "0.1", path = "../jugar-apr" }
+aprender = { workspace = true }
 glam = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }

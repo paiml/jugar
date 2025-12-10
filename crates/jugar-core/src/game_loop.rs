@@ -243,6 +243,14 @@ impl GameLoop {
     pub const fn fixed_dt(&self) -> f32 {
         self.config.fixed_dt
     }
+
+    /// Returns the current accumulator value
+    ///
+    /// This is used by the probar introspection module.
+    #[must_use]
+    pub const fn accumulator(&self) -> f32 {
+        self.state.accumulator
+    }
 }
 
 impl Default for GameLoop {

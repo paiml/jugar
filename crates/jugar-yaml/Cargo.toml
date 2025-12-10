@@ -1,0 +1,36 @@
+[package]
+name = "jugar-yaml"
+description = "ELI5 YAML-First declarative game creation for children ages 5-12"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords = ["yaml", "declarative", "kids", "game-creation", "scratch"]
+categories = ["game-engines", "parser-implementations", "config"]
+
+[dependencies]
+# YAML parsing
+serde = { workspace = true }
+serde_yaml = "0.9"
+serde_json = { workspace = true }
+base64 = { workspace = true }
+
+# Core types from jugar
+jugar-core = { path = "../jugar-core" }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+log = { workspace = true }
+
+# Validation
+validator = { version = "0.19", features = ["derive"] }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true

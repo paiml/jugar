@@ -177,8 +177,11 @@ ls target/wasm32-unknown-unknown/release/*.wasm
 | `jugar-input` | Touch/Mouse/KB/Gamepad | 10 |
 | `jugar-audio` | Spatial 2D audio | 21 |
 | `jugar-procgen` | Noise, Dungeons, WFC | 18 |
+| `jugar-yaml` | ELI5 YAML-First declarative games | 334 |
+| `jugar-probar` | Rust-native WASM game testing | 128 |
+| `jugar-web` | WASM Web platform | 95 |
 
-**Total: 162 tests**
+**Total: 1500+ tests**
 
 ## Examples
 

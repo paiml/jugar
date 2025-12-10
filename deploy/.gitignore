@@ -1,0 +1,8 @@
+# Ignore actual environment files - only .env.example should be committed
+.env
+.env.local
+.env.*.local
+
+# Ignore deployment logs
+*.log
+deploy.log
