@@ -35,7 +35,7 @@ wasmtime = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 
 # Optional derive macros for type-safe selectors (Phase 4)
-jugar-probar-derive = { path = "../jugar-probar-derive", optional = true }
+jugar-probar-derive = { version = "0.1", path = "../jugar-probar-derive", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
