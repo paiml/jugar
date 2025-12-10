@@ -1274,4 +1274,294 @@ mod tests {
 
         assert!(summary.all_passed());
     }
+
+    // -------------------------------------------------------------------------
+    // Coverage Gap Tests - DriftDetector edge cases
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_drift_detector_calibrate_empty_samples() {
+        let mut detector = DriftDetector::new(10, 2.0);
+        detector.calibrate(&[]); // Empty samples - should return early
+
+        // Should not be calibrated after empty samples
+        assert!(!detector.is_calibrated());
+    }
+
+    #[test]
+    fn test_drift_detector_incomplete_window() {
+        let mut detector = DriftDetector::new(10, 2.0);
+        detector.calibrate(&[1.0, 2.0, 3.0, 4.0, 5.0]);
+
+        // Add only 5 samples (need 10 for full window)
+        for i in 0..5 {
+            let _ = detector.observe(i as f64 + 1.0);
+        }
+
+        // Drift detection should return None for incomplete window
+        assert!(detector.detect_drift().is_none());
+    }
+
+    #[test]
+    fn test_drift_detector_zero_baseline_mean() {
+        let mut detector = DriftDetector::new(5, 2.0);
+        detector.calibrate(&[0.0, 0.0, 0.0, 0.0, 0.0]); // Zero mean baseline
+
+        // Fill the window
+        for _ in 0..5 {
+            let _ = detector.observe(1.0);
+        }
+
+        // Division guard - should return None when baseline mean is near zero
+        assert!(detector.detect_drift().is_none());
+    }
+
+    #[test]
+    fn test_drift_detector_no_drift_detected() {
+        let mut detector = DriftDetector::new(5, 50.0); // High threshold (50%)
+        detector.calibrate(&[10.0, 10.0, 10.0, 10.0, 10.0]);
+
+        // Add similar samples (within threshold)
+        for _ in 0..5 {
+            let _ = detector.observe(10.5); // Only 5% drift
+        }
+
+        // No drift should be detected (below threshold)
+        assert!(detector.detect_drift().is_none());
+    }
+
+    #[test]
+    fn test_drift_detector_window_stats_empty() {
+        let detector = DriftDetector::new(10, 2.0);
+        // No samples added, window is empty
+        assert!(detector.window_stats().is_none());
+    }
+
+    #[test]
+    fn test_drift_detector_reset_methods() {
+        let mut detector = DriftDetector::new(5, 2.0);
+        detector.calibrate(&[1.0, 2.0, 3.0, 4.0, 5.0]);
+
+        // Add some samples
+        for i in 0..5 {
+            let _ = detector.observe(i as f64);
+        }
+
+        // Partial reset - keeps calibration
+        detector.reset();
+        assert!(detector.is_calibrated()); // Still calibrated
+        assert!(detector.window_stats().is_none()); // Window cleared
+
+        // Full reset - clears everything
+        detector.full_reset();
+        assert!(!detector.is_calibrated()); // Not calibrated anymore
+    }
+
+    #[test]
+    fn test_frame_time_stats_percentile_empty() {
+        let stats = FrameTimeStats::new();
+        // Empty samples should return 0.0
+        assert_eq!(stats.percentile(50.0), 0.0);
+        assert_eq!(stats.percentile(95.0), 0.0);
+    }
+
+    #[test]
+    fn test_chaos_config_config_sweep() {
+        let config = ChaosConfig::config_sweep();
+        assert!(matches!(config.scenario, ChaosScenario::ConfigSweep));
+    }
+
+    #[test]
+    fn test_chaos_config_all_factory_variants() {
+        // Test all factory methods create correct variants
+        let entity = ChaosConfig::entity_storm();
+        assert!(matches!(entity.scenario, ChaosScenario::EntityStorm { .. }));
+
+        let input = ChaosConfig::input_flood();
+        assert!(matches!(input.scenario, ChaosScenario::InputFlood { .. }));
+
+        let time = ChaosConfig::time_warp();
+        assert!(matches!(time.scenario, ChaosScenario::TimeWarp { .. }));
+
+        let resize = ChaosConfig::resize_blitz();
+        assert!(matches!(resize.scenario, ChaosScenario::ResizeBlitz { .. }));
+
+        let rng = ChaosConfig::rng_torture();
+        assert!(matches!(rng.scenario, ChaosScenario::RngTorture { .. }));
+
+        let config_sweep = ChaosConfig::config_sweep();
+        assert!(matches!(config_sweep.scenario, ChaosScenario::ConfigSweep));
+    }
+
+    // ==================== High-Priority Coverage Tests ====================
+
+    #[test]
+    fn test_chaos_results_record_dropped_inputs() {
+        let mut results = ChaosResults::new();
+        assert_eq!(results.inputs_dropped, 0);
+
+        results.record_dropped_inputs(5);
+        assert_eq!(results.inputs_dropped, 5);
+
+        results.record_dropped_inputs(10);
+        assert_eq!(results.inputs_dropped, 15);
+    }
+
+    #[test]
+    fn test_frame_time_stats_with_capacity() {
+        let stats = FrameTimeStats::with_capacity(1000);
+        assert!(stats.is_empty());
+        assert_eq!(stats.len(), 0);
+    }
+
+    #[test]
+    fn test_frame_time_stats_clear() {
+        let mut stats = FrameTimeStats::new();
+        stats.record(10.0);
+        stats.record(20.0);
+        assert_eq!(stats.len(), 2);
+
+        stats.clear();
+        assert!(stats.is_empty());
+        assert_eq!(stats.len(), 0);
+    }
+
+    #[test]
+    fn test_frame_time_report_jitter() {
+        let mut stats = FrameTimeStats::new();
+        stats.record(5.0);
+        stats.record(10.0);
+        stats.record(15.0);
+        let report = stats.report();
+        assert!((report.jitter() - 10.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_drift_report_is_improvement() {
+        let regression = DriftReport {
+            baseline_mean: 10.0,
+            current_mean: 12.0,
+            drift_percent: 20.0,
+        };
+        assert!(regression.is_regression());
+        assert!(!regression.is_improvement());
+
+        let improvement = DriftReport {
+            baseline_mean: 10.0,
+            current_mean: 8.0,
+            drift_percent: -20.0,
+        };
+        assert!(!improvement.is_regression());
+        assert!(improvement.is_improvement());
+    }
+
+    #[test]
+    fn test_load_test_config_tier1_factory() {
+        let config = LoadTestConfig::tier1("tier1-test");
+        assert_eq!(config.name, "tier1-test");
+        assert_eq!(config.tier, 1);
+        assert!(config.chaos.is_none());
+        assert!(!config.property_tests);
+        assert!(!config.benchmark);
+        assert_eq!(config.duration_frames, 60);
+    }
+
+    #[test]
+    fn test_load_test_config_tier2_factory() {
+        let config = LoadTestConfig::tier2("tier2-test");
+        assert_eq!(config.name, "tier2-test");
+        assert_eq!(config.tier, 2);
+        assert!(config.chaos.is_some());
+        assert!(config.property_tests);
+        assert!(!config.benchmark);
+        assert_eq!(config.duration_frames, 300);
+    }
+
+    #[test]
+    fn test_load_test_config_tier3_factory() {
+        let config = LoadTestConfig::tier3("tier3-test");
+        assert_eq!(config.name, "tier3-test");
+        assert_eq!(config.tier, 3);
+        assert!(config.chaos.is_some());
+        assert!(config.property_tests);
+        assert!(config.benchmark);
+        assert_eq!(config.duration_frames, 3600);
+    }
+
+    #[test]
+    fn test_load_test_result_pass_factory() {
+        let mut stats = FrameTimeStats::new();
+        stats.record(10.0);
+        let report = stats.report();
+
+        let result = LoadTestResult::pass("pass-test", report);
+        assert!(result.passed);
+        assert_eq!(result.name, "pass-test");
+        assert!(result.error.is_none());
+        assert!(result.chaos_results.is_none());
+    }
+
+    #[test]
+    fn test_load_test_result_fail_factory() {
+        let result = LoadTestResult::fail("fail-test", "Something went wrong");
+        assert!(!result.passed);
+        assert_eq!(result.name, "fail-test");
+        assert_eq!(result.error.as_deref(), Some("Something went wrong"));
+    }
+
+    #[test]
+    fn test_load_test_summary_new_empty() {
+        let summary = LoadTestSummary::new();
+        assert_eq!(summary.total, 0);
+        assert_eq!(summary.passed, 0);
+        assert_eq!(summary.failed, 0);
+        assert!(summary.results.is_empty());
+        assert!(summary.all_passed());
+    }
+
+    #[test]
+    fn test_chaos_config_entity_storm_params() {
+        let config = ChaosConfig::entity_storm();
+        assert!(matches!(
+            config.scenario,
+            ChaosScenario::EntityStorm { max_entities: 1000 }
+        ));
+        assert_eq!(config.duration_frames, 600);
+    }
+
+    #[test]
+    fn test_chaos_config_input_flood_params() {
+        let config = ChaosConfig::input_flood();
+        assert!(matches!(
+            config.scenario,
+            ChaosScenario::InputFlood {
+                events_per_frame: 100
+            }
+        ));
+        assert_eq!(config.duration_frames, 300);
+    }
+
+    #[test]
+    fn test_chaos_config_time_warp_params() {
+        let config = ChaosConfig::time_warp();
+        assert!(matches!(config.scenario, ChaosScenario::TimeWarp { .. }));
+    }
+
+    #[test]
+    fn test_chaos_config_resize_blitz_params() {
+        let config = ChaosConfig::resize_blitz();
+        assert!(matches!(
+            config.scenario,
+            ChaosScenario::ResizeBlitz { frequency: 5 }
+        ));
+    }
+
+    #[test]
+    fn test_chaos_config_rng_torture_params() {
+        let config = ChaosConfig::rng_torture();
+        assert!(matches!(
+            config.scenario,
+            ChaosScenario::RngTorture { iterations: 1000 }
+        ));
+    }
 }

@@ -1602,4 +1602,266 @@ mod tests {
         assert!(ai.difficulty() >= 3 && ai.difficulty() <= 7);
         assert_eq!(ai.flow_channel(), FlowChannel::Flow);
     }
+
+    // ==================== Coverage Gap Tests ====================
+
+    #[test]
+    fn test_load_model_from_bytes_error_path() {
+        let mut ai = PongAI::default();
+
+        // Invalid bytes should return an error
+        let invalid_bytes: &[u8] = &[0, 1, 2, 3, 4, 5];
+        let result = ai.load_model_from_bytes(invalid_bytes);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to load AI model"));
+    }
+
+    #[test]
+    fn test_load_model_from_bytes_empty() {
+        let mut ai = PongAI::default();
+
+        // Empty bytes should return an error
+        let empty_bytes: &[u8] = &[];
+        let result = ai.load_model_from_bytes(empty_bytes);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_rng_determinism_with_seed() {
+        // Create two AIs with the same seed
+        let mut ai1 = PongAI::default();
+        let mut ai2 = PongAI::default();
+
+        // Set the same RNG state
+        ai1.rng_state = 12345;
+        ai2.rng_state = 12345;
+
+        // Run several updates - they should produce identical results
+        for _ in 0..10 {
+            let v1 = ai1.update(
+                400.0, 300.0, 200.0, 100.0, 300.0, 100.0, 800.0, 600.0, 0.016,
+            );
+            let v2 = ai2.update(
+                400.0, 300.0, 200.0, 100.0, 300.0, 100.0, 800.0, 600.0, 0.016,
+            );
+            assert_eq!(v1, v2);
+        }
+    }
+
+    #[test]
+    fn test_finalize_rally_window_trimming() {
+        let mut ai = PongAI::default();
+
+        // Record many rallies to trigger window trimming
+        for _ in 0..100 {
+            ai.record_player_scored();
+        }
+
+        // The history should be limited to window size (30 for DDA)
+        // This tests the finalize_rally path indirectly via metrics
+        assert!(ai.metrics.rally_history.len() <= 30);
+    }
+
+    // ==================== High-Priority Coverage Tests ====================
+
+    #[test]
+    fn test_pong_ai_model_new_with_metadata() {
+        let model = PongAIModel::new("TestAI", "A test AI model");
+        assert_eq!(model.metadata.name, "TestAI");
+        assert_eq!(model.metadata.description, "A test AI model");
+        // Inherits default profiles
+        assert_eq!(model.difficulty_profiles.len(), 10);
+    }
+
+    #[test]
+    fn test_pong_ai_model_generate_default_profiles() {
+        let profiles = PongAIModel::generate_default_profiles();
+        assert_eq!(profiles.len(), 10);
+
+        // Level 0 - Training Wheels
+        assert_eq!(profiles[0].level, 0);
+        assert_eq!(profiles[0].name, "Training Wheels");
+        assert!(profiles[0].reaction_delay_ms > 400.0); // High delay
+
+        // Level 9 - Perfect (UNBEATABLE)
+        let perfect = &profiles[9];
+        assert_eq!(perfect.level, 9);
+        assert_eq!(perfect.name, "Perfect");
+        assert!((perfect.reaction_delay_ms - 0.0).abs() < 0.001); // Instant
+        assert!((perfect.prediction_accuracy - 1.0).abs() < 0.001); // Perfect
+        assert!((perfect.error_magnitude - 0.0).abs() < 0.001); // Zero error
+    }
+
+    #[test]
+    fn test_pong_ai_model_to_json_compact() {
+        let model = PongAIModel::default();
+        let json = model.to_json_compact();
+        assert!(!json.is_empty());
+        assert!(json.len() < model.to_json().len()); // Compact is smaller
+    }
+
+    #[test]
+    fn test_pong_ai_model_from_json() {
+        let model = PongAIModel::default();
+        let json = model.to_json();
+        let loaded = PongAIModel::from_json(&json);
+        assert!(loaded.is_ok());
+        let loaded = loaded.unwrap();
+        assert_eq!(loaded.metadata.name, model.metadata.name);
+        assert_eq!(loaded.difficulty_profiles.len(), 10);
+    }
+
+    #[test]
+    fn test_pong_ai_model_from_json_invalid() {
+        let result = PongAIModel::from_json("invalid json");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("Failed to parse model"));
+    }
+
+    #[test]
+    fn test_player_metrics_average_rally() {
+        let mut metrics = PlayerMetrics::default();
+        // Empty history returns default
+        assert!((metrics.average_rally() - 5.0).abs() < 0.001);
+
+        // Add some rallies
+        metrics.rally_history.push(10);
+        metrics.rally_history.push(20);
+        metrics.rally_history.push(30);
+        assert!((metrics.average_rally() - 20.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_decision_explanation_compute_contributions() {
+        let mut explanation = DecisionExplanation {
+            ball_approaching: true,
+            ball_vx: 200.0,
+            reaction_delay_ms: 100.0,
+            distance_to_target: 50.0,
+            prediction_accuracy: 0.8,
+            max_paddle_speed: 400.0,
+            applied_error: 10.0,
+            state: DecisionState::Tracking,
+            ..Default::default()
+        };
+
+        explanation.compute_contributions();
+        assert!(!explanation.contributions.is_empty());
+        assert_eq!(explanation.contributions.len(), 6);
+        // Each contribution should have a name and importance
+        for contrib in &explanation.contributions {
+            assert!(!contrib.name.is_empty());
+            assert!(contrib.importance >= 0.0 && contrib.importance <= 1.0);
+        }
+    }
+
+    #[test]
+    fn test_decision_explanation_generate_rationale() {
+        // Test Idle state
+        let mut idle = DecisionExplanation {
+            state: DecisionState::Idle,
+            ball_vx: -100.0,
+            ..Default::default()
+        };
+        idle.generate_rationale();
+        assert!(idle.rationale.contains("Ball moving away"));
+
+        // Test Reacting state
+        let mut reacting = DecisionExplanation {
+            state: DecisionState::Reacting,
+            reaction_delay_ms: 150.0,
+            reaction_elapsed_ms: 50.0,
+            difficulty_level: 3,
+            ..Default::default()
+        };
+        reacting.generate_rationale();
+        assert!(reacting.rationale.contains("Reaction delay"));
+        assert!(reacting.rationale.contains("Level 3"));
+
+        // Test Tracking state
+        let mut tracking = DecisionExplanation {
+            state: DecisionState::Tracking,
+            target_y: 300.0,
+            prediction_accuracy: 0.75,
+            max_paddle_speed: 400.0,
+            output_velocity: -50.0, // Moving UP
+            ..Default::default()
+        };
+        tracking.generate_rationale();
+        assert!(tracking.rationale.contains("Tracking ball"));
+        assert!(tracking.rationale.contains("UP"));
+
+        // Test Ready state
+        let mut ready = DecisionExplanation {
+            state: DecisionState::Ready,
+            target_y: 350.0,
+            ..Default::default()
+        };
+        ready.generate_rationale();
+        assert!(ready.rationale.contains("At target"));
+    }
+
+    #[test]
+    fn test_pong_ai_with_difficulty_constructor() {
+        let ai = PongAI::with_difficulty(7);
+        assert_eq!(ai.difficulty(), 7);
+        assert_eq!(ai.difficulty_name(), "Very Hard");
+    }
+
+    #[test]
+    fn test_pong_ai_difficulty_name_levels() {
+        let ai = PongAI::with_difficulty(0);
+        assert_eq!(ai.difficulty_name(), "Training Wheels");
+
+        let ai = PongAI::with_difficulty(5);
+        assert_eq!(ai.difficulty_name(), "Challenging");
+    }
+
+    #[test]
+    fn test_pong_ai_metrics_mut() {
+        let mut ai = PongAI::default();
+        let metrics = ai.metrics_mut();
+        metrics.player_hits = 100;
+        assert_eq!(ai.metrics().player_hits, 100);
+    }
+
+    #[test]
+    fn test_pong_ai_explanation_accessor() {
+        let ai = PongAI::default();
+        let explanation = ai.explanation();
+        assert!(matches!(explanation.state, DecisionState::Idle));
+    }
+
+    #[test]
+    fn test_pong_ai_export_explanation() {
+        let ai = PongAI::default();
+        let json = ai.export_explanation();
+        assert!(json.contains("state"));
+        assert!(json.contains("target_y"));
+    }
+
+    #[test]
+    fn test_decision_explanation_compute_contributions_reacting() {
+        let mut explanation = DecisionExplanation {
+            ball_approaching: true,
+            ball_vx: 200.0,
+            reaction_delay_ms: 200.0,
+            distance_to_target: 0.0,
+            prediction_accuracy: 0.5,
+            max_paddle_speed: 300.0,
+            applied_error: 0.0,
+            state: DecisionState::Reacting, // Reacting state gives different contribution
+            ..Default::default()
+        };
+
+        explanation.compute_contributions();
+        // Find reaction delay contribution
+        let reaction_contrib = explanation
+            .contributions
+            .iter()
+            .find(|c| c.name == "Reaction Delay");
+        assert!(reaction_contrib.is_some());
+        assert!(reaction_contrib.unwrap().contribution > 0.0); // Should be positive when reacting
+    }
 }
