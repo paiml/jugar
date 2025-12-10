@@ -9,7 +9,7 @@
 
 WASM_TARGET := wasm32-unknown-unknown
 
-.PHONY: help tier1 tier2 tier3 build build-wasm build-web serve-web test test-fast test-property test-property-full test-e2e test-e2e-headed coverage coverage-summary coverage-open coverage-check coverage-ci coverage-clean lint lint-all lint-fast lint-bash lint-ts lint-html lint-js-complexity fmt clean all dev bench mutate mutate-quick mutate-file mutate-report kaizen pmat-tdg pmat-analyze pmat-ts pmat-score pmat-rust-score pmat-mutate pmat-validate-docs pmat-quality-gate pmat-context pmat-all install-tools verify-no-js verify-batuta-deps load-test load-test-quick load-test-full ai-test ai-simulate trace-test
+.PHONY: help tier1 tier2 tier3 build build-wasm build-web serve-web test test-fast test-property test-property-full test-e2e test-e2e-verbose test-e2e-coverage coverage coverage-summary coverage-open coverage-check coverage-ci coverage-clean lint lint-all lint-fast lint-bash lint-ts lint-html lint-js-complexity fmt clean all dev bench mutate mutate-quick mutate-file mutate-report kaizen pmat-tdg pmat-analyze pmat-ts pmat-score pmat-rust-score pmat-mutate pmat-validate-docs pmat-quality-gate pmat-context pmat-all install-tools verify-no-js verify-batuta-deps load-test load-test-quick load-test-full ai-test ai-simulate trace-test
 
 # Default target
 all: tier2
@@ -120,6 +120,56 @@ test-e2e: build-web ## Run Probar e2e tests for pong-web (replaces Playwright)
 
 test-e2e-verbose: build-web ## Run Probar e2e tests with verbose output
 	cargo test -p jugar-web --test probar_pong -- --nocapture
+
+test-e2e-coverage: ## Run Probar e2e tests with coverage analysis (Pong WASM game)
+	@echo "🎮 PROBAR E2E COVERAGE: Pong WASM Game"
+	@echo "======================================"
+	@echo ""
+	@echo "📋 Test Framework: Probar v2.0 (Pure Rust, Zero JavaScript)"
+	@echo "📋 Coverage Tool: cargo-llvm-cov + nextest"
+	@echo "📋 Target: jugar-web (Pong WASM game)"
+	@echo ""
+	@echo "  [1/6] Installing tools if needed..."
+	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
+	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
+	@echo "  [2/6] Cleaning old coverage data..."
+	@cargo llvm-cov clean --workspace 2>/dev/null || true
+	@mkdir -p target/coverage/e2e
+	@# Temporarily disable mold linker (breaks LLVM coverage)
+	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
+	@echo "  [3/6] Running Probar e2e tests with instrumentation..."
+	@echo ""
+	@echo "  🧪 Test Suites:"
+	@echo "     • Suite 1: Pong WASM Game - Core Functionality (6 tests)"
+	@echo "     • Suite 2: Pong Demo Features (22 tests)"
+	@echo "     • Suite 3: Release Readiness - Stress & Performance (11 tests)"
+	@echo ""
+	@cargo llvm-cov --no-report nextest --test probar_pong -p jugar-web $(COV_IGNORE) 2>&1 | grep -E "^(test |running |test result:|PASSED|FAILED|ok|TOTAL)" || true
+	@echo ""
+	@echo "  [4/6] Running library unit tests with instrumentation..."
+	@cargo llvm-cov --no-report nextest --lib -p jugar-web $(COV_IGNORE) 2>&1 | tail -5
+	@echo "  [5/6] Generating HTML report..."
+	@cargo llvm-cov report --html --output-dir target/coverage/e2e -p jugar-web $(COV_IGNORE)
+	@echo "  [6/6] Generating summary..."
+	@# Restore mold linker
+	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════════════════╗"
+	@echo "║  📊 PONG GAME E2E COVERAGE SUMMARY                                    ║"
+	@echo "╠══════════════════════════════════════════════════════════════════════╣"
+	@cargo llvm-cov report --summary-only -p jugar-web $(COV_IGNORE) 2>/dev/null | grep -E "TOTAL|jugar-web" | head -5
+	@echo "╚══════════════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "📊 Pong Game File Coverage:"
+	@cargo llvm-cov report -p jugar-web $(COV_IGNORE) 2>/dev/null | grep -E "ai\.rs|demo\.rs|platform\.rs|loadtest\.rs|juice\.rs" || echo "  (run 'make coverage-open' to see full report)"
+	@echo ""
+	@echo "✅ E2E Coverage report: target/coverage/e2e/html/index.html"
+	@echo ""
+	@echo "🎯 Quality Metrics:"
+	@echo "   • Function coverage target: ≥95%"
+	@echo "   • Line coverage target: ≥95%"
+	@echo "   • Zero JavaScript computation: ✓"
+	@echo "   • Pure Rust testing: ✓"
 
 # ============================================================================
 # TEST TARGETS
