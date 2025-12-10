@@ -154,6 +154,10 @@ pub mod standard_invariants {
     pub use super::fuzzer::standard_invariants::*;
 }
 
+// Re-export derive macros when the `derive` feature is enabled (Phase 4: Poka-Yoke)
+#[cfg(feature = "derive")]
+pub use jugar_probar_derive::{probar_test, ProbarComponent, ProbarEntity, ProbarSelector};
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {

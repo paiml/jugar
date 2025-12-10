@@ -15,6 +15,8 @@ default = []
 browser = ["chromiumoxide", "tokio", "futures"]
 # Enable WASM runtime for logic testing (Phase 1)
 runtime = ["wasmtime", "async-trait"]
+# Enable derive macros for type-safe selectors (Phase 4)
+derive = ["jugar-probar-derive"]
 
 [dependencies]
 thiserror = { workspace = true }
@@ -31,6 +33,9 @@ futures = { workspace = true, optional = true }
 # Optional WASM runtime for logic testing (Phase 1)
 wasmtime = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
+
+# Optional derive macros for type-safe selectors (Phase 4)
+jugar-probar-derive = { path = "../jugar-probar-derive", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

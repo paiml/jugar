@@ -14,6 +14,7 @@ members = [
     "crates/jugar-yaml",
     "crates/jugar-apr",
     "crates/jugar-probar",
+    "crates/jugar-probar-derive",
     "examples/universal_pong",
 ]
 
