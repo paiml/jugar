@@ -19,6 +19,33 @@
 | 4 | `jugar-probar-derive` - Poka-Yoke Macros | ✅ Complete | 600+ | `f387ec1` |
 | 5 | `reporter.rs` - Andon Cord Reporter | ✅ Complete | 896 | `e0df9e5` |
 | 6 | Documentation | ✅ Complete | - | - |
+| 7 | Playwright Replacement | ✅ Complete | 1089 | - |
+
+### Playwright Replacement (Completed)
+
+All 38 Playwright E2E tests have been converted to 39 native Probar tests:
+
+| Test Suite | Playwright | Probar | Status |
+|------------|-----------|--------|--------|
+| Pong WASM Game (Core) | 6 | 6 | ✅ Converted |
+| Pong Demo Features | 22 | 22 | ✅ Converted |
+| Release Readiness | 10 | 11 | ✅ Converted |
+| **Total** | **38** | **39** | **✅ Complete** |
+
+**Files Removed:**
+- `examples/pong-web/tests/pong.spec.ts`
+- `examples/pong-web/playwright.config.ts`
+- `examples/pong-web/package.json`
+- `examples/pong-web/node_modules/`
+
+**Files Added:**
+- `crates/jugar-web/tests/probar_pong.rs` (1089 lines, 39 tests)
+
+**Run Tests:**
+```bash
+make test-e2e                                    # All Probar E2E tests
+cargo test -p jugar-web --test probar_pong       # Direct cargo invocation
+```
 
 ### Crates
 

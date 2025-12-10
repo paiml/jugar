@@ -35,6 +35,7 @@ path = "examples/load_test.rs"
 
 [dev-dependencies]
 proptest = { workspace = true }
+jugar-probar = { path = "../jugar-probar" }
 
 [features]
 default = []

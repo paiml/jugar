@@ -113,13 +113,13 @@ serve-web: ## Serve pong-web example locally
 	@echo "   Open http://localhost:8080 in your browser"
 	python3 -m http.server 8080 --directory examples/pong-web
 
-test-e2e: build-web ## Run Playwright e2e tests for pong-web
-	@echo "🧪 Running Playwright e2e tests..."
-	cd examples/pong-web && npm test
-	@echo "✅ All e2e tests passed!"
+test-e2e: build-web ## Run Probar e2e tests for pong-web (replaces Playwright)
+	@echo "🧪 Running Probar e2e tests (pure Rust, no browser needed)..."
+	cargo test -p jugar-web --test probar_pong
+	@echo "✅ All Probar e2e tests passed!"
 
-test-e2e-headed: build-web ## Run Playwright e2e tests with browser visible
-	cd examples/pong-web && npm run test:headed
+test-e2e-verbose: build-web ## Run Probar e2e tests with verbose output
+	cargo test -p jugar-web --test probar_pong -- --nocapture
 
 # ============================================================================
 # TEST TARGETS
@@ -410,14 +410,14 @@ verify-no-js: ## Verify NO JavaScript in project (CRITICAL)
 	fi
 	@echo "  ✅ No standalone .js files (wasm-pack pkg/ and node_modules excluded)"
 	@echo ""
-	@echo "  [2/5] Checking for .ts files (excluding test files and type definitions)..."
-	@# Allow: Playwright test files, playwright.config.ts, node_modules, .d.ts type definitions
-	@if find . -name "*.ts" -not -name "*.d.ts" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*" -not -path "*/node_modules/*" -not -path "*/examples/pong-web/tests/*" -not -name "playwright.config.ts" | grep -q .; then \
-		echo "❌ FAIL: TypeScript files detected outside allowed test directories!"; \
-		find . -name "*.ts" -not -name "*.d.ts" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*" -not -path "*/node_modules/*" -not -path "*/examples/pong-web/tests/*" -not -name "playwright.config.ts"; \
+	@echo "  [2/5] Checking for .ts files (excluding type definitions)..."
+	@# Allow: .d.ts type definitions from wasm-pack output only
+	@if find . -name "*.ts" -not -name "*.d.ts" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*" | grep -q .; then \
+		echo "❌ FAIL: TypeScript files detected!"; \
+		find . -name "*.ts" -not -name "*.d.ts" -not -path "./target/*" -not -path "./.git/*" -not -path "*/pkg/*"; \
 		exit 1; \
 	fi
-	@echo "  ✅ No .ts files (Playwright tests, .d.ts, node_modules excluded)"
+	@echo "  ✅ No .ts files (.d.ts type definitions excluded)"
 	@echo ""
 	@echo "  [3/5] Checking for package.json..."
 	@if [ -f "package.json" ]; then \

@@ -1807,6 +1807,7 @@ dependencies = [
  "jugar",
  "jugar-core",
  "jugar-input",
+ "jugar-probar",
  "jugar-render",
  "proptest",
  "serde",
