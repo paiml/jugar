@@ -11,4 +11,4 @@ too-many-lines-threshold = 150
 too-many-arguments-threshold = 8
 
 # MSRV for the project
-msrv = "1.75.0"
+msrv = "1.83.0"
