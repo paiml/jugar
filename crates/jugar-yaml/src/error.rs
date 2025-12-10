@@ -365,10 +365,12 @@ mod tests {
     fn test_helper_character_phrase() {
         assert!(!HelperCharacter::Owl.phrase().is_empty());
         assert!(!HelperCharacter::Robot.phrase().is_empty());
+        assert!(!HelperCharacter::Bunny.phrase().is_empty());
+        assert!(!HelperCharacter::Dragon.phrase().is_empty());
     }
 
     #[test]
-    fn test_kid_friendly_error_render() {
+    fn test_kid_friendly_error_render_with_location() {
         let err = KidFriendlyError {
             headline: "Test headline".to_string(),
             explanation: "Test explanation".to_string(),
@@ -389,6 +391,54 @@ mod tests {
     }
 
     #[test]
+    fn test_kid_friendly_error_render_without_column() {
+        let err = KidFriendlyError {
+            headline: "Test".to_string(),
+            explanation: "Explanation".to_string(),
+            location: Some(ErrorLocation {
+                line: 3,
+                column: None,
+            }),
+            suggestions: vec!["Fix".to_string()],
+            helper: HelperCharacter::Robot,
+        };
+
+        let rendered = err.render();
+        assert!(rendered.contains("Line 3"));
+        assert!(!rendered.contains("column"));
+    }
+
+    #[test]
+    fn test_kid_friendly_error_render_without_location() {
+        let err = KidFriendlyError {
+            headline: "Test".to_string(),
+            explanation: "Explanation".to_string(),
+            location: None,
+            suggestions: vec![],
+            helper: HelperCharacter::Bunny,
+        };
+
+        let rendered = err.render();
+        assert!(!rendered.contains("Line"));
+        assert!(!rendered.contains("Try this instead"));
+    }
+
+    #[test]
+    fn test_syntax_error_to_kid_friendly() {
+        let err = YamlError::SyntaxError {
+            message: "expected scalar".to_string(),
+            line: Some(10),
+            column: Some(5),
+        };
+
+        let kid_err = err.to_kid_friendly();
+        assert!(kid_err.headline.contains("something's not quite right"));
+        assert_eq!(kid_err.helper, HelperCharacter::Robot);
+        assert!(kid_err.location.is_some());
+        assert_eq!(kid_err.location.unwrap().line, 10);
+    }
+
+    #[test]
     fn test_unknown_word_to_kid_friendly() {
         let err = YamlError::UnknownWord {
             word: "dinosaur".to_string(),
@@ -404,16 +454,172 @@ mod tests {
     }
 
     #[test]
+    fn test_unknown_word_no_suggestions() {
+        let err = YamlError::UnknownWord {
+            word: "xyz".to_string(),
+            suggestions: vec![],
+            line: None,
+        };
+
+        let kid_err = err.to_kid_friendly();
+        assert!(kid_err.suggestions.iter().any(|s| s.contains("spelling")));
+    }
+
+    #[test]
     fn test_nesting_too_deep_to_kid_friendly() {
         let err = YamlError::NestingTooDeep { max: 2, found: 5 };
         let kid_err = err.to_kid_friendly();
         assert!(kid_err.headline.contains("complicated"));
+        assert!(kid_err.explanation.contains('5'));
+        assert!(kid_err.explanation.contains('2'));
         assert_eq!(kid_err.helper, HelperCharacter::Dragon);
     }
 
     #[test]
-    fn test_simplify_syntax_error() {
-        assert!(simplify_syntax_error("expected scalar, found mapping").contains("out of place"));
-        assert!(simplify_syntax_error("invalid mapping").contains("indentation"));
+    fn test_missing_required_to_kid_friendly() {
+        let err = YamlError::MissingRequired {
+            field: "name".to_string(),
+            example: "My Game".to_string(),
+        };
+
+        let kid_err = err.to_kid_friendly();
+        assert!(kid_err.headline.contains("forgot"));
+        assert!(kid_err.explanation.contains("name"));
+        assert_eq!(kid_err.helper, HelperCharacter::Bunny);
+        assert!(kid_err
+            .suggestions
+            .iter()
+            .any(|s| s.contains("name: My Game")));
+    }
+
+    #[test]
+    fn test_out_of_range_to_kid_friendly() {
+        let err = YamlError::OutOfRange {
+            field: "speed".to_string(),
+            min: 1,
+            max: 100,
+            value: 200,
+        };
+
+        let kid_err = err.to_kid_friendly();
+        assert!(kid_err.headline.contains("too big or too small"));
+        assert!(kid_err.explanation.contains("speed"));
+        assert!(kid_err.explanation.contains("200"));
+        assert_eq!(kid_err.helper, HelperCharacter::Robot);
+    }
+
+    #[test]
+    fn test_invalid_enum_value_to_kid_friendly() {
+        let err = YamlError::InvalidEnumValue {
+            field: "color".to_string(),
+            value: "purple".to_string(),
+            valid_options: vec!["red".to_string(), "blue".to_string()],
+        };
+
+        let kid_err = err.to_kid_friendly();
+        assert!(kid_err.headline.contains("color"));
+        assert!(kid_err.explanation.contains("purple"));
+        assert_eq!(kid_err.helper, HelperCharacter::Owl);
+        assert!(kid_err.suggestions.iter().any(|s| s.contains("red")));
+    }
+
+    #[test]
+    fn test_file_not_found_to_kid_friendly() {
+        let err = YamlError::FileNotFound {
+            path: "sprite.png".to_string(),
+        };
+
+        let kid_err = err.to_kid_friendly();
+        assert!(kid_err.headline.contains("can't find"));
+        assert!(kid_err.explanation.contains("sprite.png"));
+        assert_eq!(kid_err.helper, HelperCharacter::Bunny);
+    }
+
+    #[test]
+    fn test_incompatible_model_to_kid_friendly() {
+        let err = YamlError::IncompatibleModel {
+            model: "ai_model_v2".to_string(),
+            reason: "too complex".to_string(),
+        };
+
+        let kid_err = err.to_kid_friendly();
+        assert!(kid_err.headline.contains("doesn't fit"));
+        assert!(kid_err.explanation.contains("ai_model_v2"));
+        assert_eq!(kid_err.helper, HelperCharacter::Dragon);
+    }
+
+    #[test]
+    fn test_validation_error_to_kid_friendly() {
+        let err = YamlError::ValidationError {
+            message: "Custom validation failed".to_string(),
+        };
+
+        let kid_err = err.to_kid_friendly();
+        assert!(kid_err.headline.contains("isn't quite right"));
+        assert!(kid_err.explanation.contains("Custom validation failed"));
+        assert_eq!(kid_err.helper, HelperCharacter::Owl);
+    }
+
+    #[test]
+    fn test_simplify_syntax_error_expected_found() {
+        let result = simplify_syntax_error("expected scalar, found mapping");
+        assert!(result.contains("out of place"));
+    }
+
+    #[test]
+    fn test_simplify_syntax_error_mapping() {
+        let result = simplify_syntax_error("invalid mapping");
+        assert!(result.contains("indentation"));
+    }
+
+    #[test]
+    fn test_simplify_syntax_error_scalar() {
+        let result = simplify_syntax_error("invalid scalar value");
+        assert!(result.contains("value"));
+    }
+
+    #[test]
+    fn test_simplify_syntax_error_duplicate() {
+        let result = simplify_syntax_error("duplicate key");
+        assert!(result.contains("twice"));
+    }
+
+    #[test]
+    fn test_simplify_syntax_error_unknown() {
+        let result = simplify_syntax_error("some random error");
+        assert!(result.contains("formatting"));
+    }
+
+    #[test]
+    fn test_yaml_error_display() {
+        let err = YamlError::SyntaxError {
+            message: "test".to_string(),
+            line: Some(1),
+            column: None,
+        };
+        assert!(err.to_string().contains("YAML syntax error"));
+
+        let err = YamlError::UnknownWord {
+            word: "foo".to_string(),
+            suggestions: vec![],
+            line: None,
+        };
+        assert!(err.to_string().contains("foo"));
+
+        let err = YamlError::NestingTooDeep { max: 2, found: 5 };
+        assert!(err.to_string().contains('5'));
+
+        let err = YamlError::OutOfRange {
+            field: "x".to_string(),
+            min: 0,
+            max: 100,
+            value: 150,
+        };
+        assert!(err.to_string().contains("150"));
+
+        let err = YamlError::FileNotFound {
+            path: "test.png".to_string(),
+        };
+        assert!(err.to_string().contains("test.png"));
     }
 }
