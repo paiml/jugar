@@ -1,0 +1,55 @@
+# Pong Classic - Level 2 Template
+# The classic paddle game for ages 8-10
+#
+# Two paddles, one ball, endless fun!
+
+game: pong-classic
+
+characters:
+  player:
+    type: paddle
+    move: arrows
+    speed: fast
+
+  opponent:
+    type: paddle
+    move: auto
+    pattern: chase
+
+  ball:
+    type: ball
+    move: auto
+    pattern: bounce
+    speed: normal
+
+rules:
+  - when: ball touches player
+    then:
+      - play: boing
+      - ball: bounce
+
+  - when: ball touches opponent
+    then:
+      - play: boing
+      - ball: bounce
+
+  - when: ball reaches left_edge
+    then:
+      - add_score: 1
+      - play: victory
+      - ball: respawn
+
+  - when: ball reaches right_edge
+    then:
+      - lose_life: 1
+      - play: oops
+      - ball: respawn
+
+  - when: score reaches 10
+    then:
+      - show: you_win
+      - stop: game
+
+lives: 3
+background: space
+music: adventure

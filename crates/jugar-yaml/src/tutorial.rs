@@ -438,7 +438,7 @@ impl TemplateCatalog {
         catalog.templates.push(
             GameTemplate::new("catch-stars", "Catch the Stars", SchemaLevel::Level1)
                 .with_description("Guide your bunny to catch falling stars!")
-                .with_yaml(include_str!("../../../templates/catch-stars.yaml")),
+                .with_yaml(include_str!("../templates/catch-stars.yaml")),
         );
 
         // Avoid Spiders (Level 1) - from spec Appendix C.1
@@ -452,14 +452,14 @@ impl TemplateCatalog {
         catalog.templates.push(
             GameTemplate::new("pong", "Pong Classic", SchemaLevel::Level2)
                 .with_description("The classic paddle game for two players!")
-                .with_yaml(include_str!("../../../templates/pong.yaml")),
+                .with_yaml(include_str!("../templates/pong.yaml")),
         );
 
         // Maze (Level 2) - from spec
         catalog.templates.push(
             GameTemplate::new("maze", "Maze Explorer", SchemaLevel::Level2)
                 .with_description("Find your way through the maze!")
-                .with_yaml(include_str!("../../../templates/maze.yaml")),
+                .with_yaml(include_str!("../templates/maze.yaml")),
         );
 
         // Platformer (Level 3) - from spec Appendix C.2

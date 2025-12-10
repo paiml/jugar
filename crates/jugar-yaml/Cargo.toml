@@ -9,6 +9,7 @@ repository.workspace = true
 authors.workspace = true
 keywords = ["yaml", "declarative", "kids", "game-creation", "scratch"]
 categories = ["game-engines", "parser-implementations", "config"]
+include = ["src/**/*", "templates/**/*", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
 # YAML parsing
