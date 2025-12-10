@@ -10,6 +10,7 @@
 //! - **WASM Entity Support**: Custom `.entity()` method for game object selection
 //! - **Fluent API**: Chainable methods for building complex selectors
 
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::result::{ProbarError, ProbarResult};
@@ -21,7 +22,7 @@ pub const DEFAULT_TIMEOUT_MS: u64 = 5000;
 pub const DEFAULT_POLL_INTERVAL_MS: u64 = 50;
 
 /// A point in 2D space
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Point {
     /// X coordinate
     pub x: f32,
@@ -518,7 +519,7 @@ impl LocatorQuery {
 }
 
 /// Bounding box for an element
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct BoundingBox {
     /// X position
     pub x: f32,
