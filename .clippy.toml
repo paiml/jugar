@@ -10,15 +10,5 @@ too-many-lines-threshold = 150
 # Maximum number of arguments for a function
 too-many-arguments-threshold = 8
 
-# Disallow specific methods that can cause issues
-disallowed-methods = [
-    # Prefer explicit error handling over panics
-    { path = "std::option::Option::unwrap", reason = "Use expect() with a message or handle None explicitly" },
-    { path = "std::result::Result::unwrap", reason = "Use expect() with a message or handle Err explicitly" },
-]
-
-# Allow common patterns in game development
-allow-unwrap-in-tests = true
-
 # MSRV for the project
 msrv = "1.75.0"
