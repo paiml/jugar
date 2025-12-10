@@ -380,7 +380,7 @@ impl MemoryView {
 }
 
 /// WASM runtime configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct RuntimeConfig {
     /// Enable threading support (for SharedArrayBuffer)
     pub wasm_threads: bool,
@@ -443,6 +443,7 @@ impl RuntimeConfig {
 /// ```
 #[cfg(feature = "runtime")]
 pub struct WasmRuntime {
+    #[allow(dead_code)] // Engine kept for potential reuse/extension
     engine: Engine,
     store: Store<GameHostState>,
     instance: Instance,
@@ -533,6 +534,7 @@ impl WasmRuntime {
             .func_wrap(
                 "probar",
                 "get_input_count",
+                #[allow(clippy::cast_possible_truncation)]
                 |caller: Caller<'_, GameHostState>| -> u32 {
                     caller.data().input_queue.len() as u32
                 },
@@ -618,10 +620,13 @@ impl WasmRuntime {
         let execution_time = start.elapsed();
         let state_hash = self.compute_state_hash();
 
+        #[allow(clippy::cast_possible_truncation)]
+        let execution_time_ns = execution_time.as_nanos() as u64;
+
         Ok(FrameResult {
             frame_number: self.store.data().frame_count,
             state_hash,
-            execution_time_ns: execution_time.as_nanos() as u64,
+            execution_time_ns,
         })
     }
 
@@ -635,6 +640,11 @@ impl WasmRuntime {
     }
 
     /// Get raw memory slice
+    ///
+    /// # Panics
+    ///
+    /// Panics if the WASM module does not export a `memory` symbol.
+    /// This is expected for all valid Jugar game modules.
     #[must_use]
     pub fn get_memory(&mut self) -> &[u8] {
         let memory = self

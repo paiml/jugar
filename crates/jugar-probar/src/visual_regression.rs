@@ -332,6 +332,9 @@ mod tests {
         let config = VisualRegressionConfig::default();
         assert!((config.threshold - 0.01).abs() < f64::EPSILON);
         assert_eq!(config.color_threshold, 10);
+        assert_eq!(config.baseline_dir, "__baselines__");
+        assert_eq!(config.diff_dir, "__diffs__");
+        assert!(!config.update_baselines);
     }
 
     #[test]
@@ -341,6 +344,74 @@ mod tests {
             .with_color_threshold(20);
         assert!((config.threshold - 0.05).abs() < f64::EPSILON);
         assert_eq!(config.color_threshold, 20);
+    }
+
+    #[test]
+    fn test_config_with_baseline_dir() {
+        let config = VisualRegressionConfig::default().with_baseline_dir("my_baselines");
+        assert_eq!(config.baseline_dir, "my_baselines");
+    }
+
+    #[test]
+    fn test_config_with_update_baselines() {
+        let config = VisualRegressionConfig::default().with_update_baselines(true);
+        assert!(config.update_baselines);
+    }
+
+    #[test]
+    fn test_tester_config_accessor() {
+        let config = VisualRegressionConfig::default().with_threshold(0.02);
+        let tester = VisualRegressionTester::new(config);
+        assert!((tester.config().threshold - 0.02).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_tester_default() {
+        let tester = VisualRegressionTester::default();
+        assert!((tester.config().threshold - 0.01).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_perceptual_diff() {
+        let white = Rgba([255, 255, 255, 255]);
+        let black = Rgba([0, 0, 0, 255]);
+        let red = Rgba([255, 0, 0, 255]);
+
+        // White vs white should be 0
+        assert!((perceptual_diff(white, white) - 0.0).abs() < f64::EPSILON);
+
+        // White vs black should be non-zero
+        let wb_diff = perceptual_diff(white, black);
+        assert!(wb_diff > 0.0);
+
+        // Red vs black should be less than white vs black (red weighted at 0.299)
+        let rb_diff = perceptual_diff(red, black);
+        assert!(rb_diff < wb_diff);
+    }
+
+    #[test]
+    fn test_image_diff_result_is_identical() {
+        let result = ImageDiffResult {
+            matches: true,
+            diff_pixel_count: 0,
+            total_pixels: 100,
+            diff_percentage: 0.0,
+            max_color_diff: 0,
+            avg_color_diff: 0.0,
+            diff_image: None,
+        };
+        assert!(result.is_identical());
+
+        let result2 = ImageDiffResult {
+            matches: false,
+            diff_pixel_count: 5,
+            total_pixels: 100,
+            diff_percentage: 5.0,
+            max_color_diff: 100,
+            avg_color_diff: 50.0,
+            diff_image: None,
+        };
+        assert!(!result2.is_identical());
     }
 
     #[test]
@@ -486,5 +557,193 @@ mod tests {
         let result = tester.compare_images(&buffer1, &buffer2).unwrap();
 
         assert!(result.matches); // Small diff within color threshold
+    }
+
+    #[test]
+    fn test_compare_against_baseline_missing() {
+        let config =
+            VisualRegressionConfig::default().with_baseline_dir("/tmp/nonexistent_baselines_12345");
+        let tester = VisualRegressionTester::new(config);
+
+        // Create a simple image
+        let img = image::RgbaImage::new(2, 2);
+        let mut buffer = Vec::new();
+        let encoder = image::codecs::png::PngEncoder::new(&mut buffer);
+        encoder
+            .write_image(img.as_raw(), 2, 2, image::ExtendedColorType::Rgba8)
+            .unwrap();
+
+        let result = tester.compare_against_baseline("missing_test", &buffer);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_compare_against_baseline_with_update() {
+        use std::fs;
+        let temp_dir = std::env::temp_dir().join("vr_test_update_baselines");
+        let _ = fs::remove_dir_all(&temp_dir); // Clean up from previous runs
+
+        let config = VisualRegressionConfig::default()
+            .with_baseline_dir(temp_dir.to_string_lossy())
+            .with_update_baselines(true);
+        let tester = VisualRegressionTester::new(config);
+
+        // Create a simple image
+        let mut img = image::RgbaImage::new(2, 2);
+        for pixel in img.pixels_mut() {
+            *pixel = Rgba([100, 100, 100, 255]);
+        }
+        let mut buffer = Vec::new();
+        let encoder = image::codecs::png::PngEncoder::new(&mut buffer);
+        encoder
+            .write_image(img.as_raw(), 2, 2, image::ExtendedColorType::Rgba8)
+            .unwrap();
+
+        // First call should create baseline
+        let result = tester
+            .compare_against_baseline("update_test", &buffer)
+            .unwrap();
+        assert!(result.matches);
+        assert!(temp_dir.join("update_test.png").exists());
+
+        // Second call should compare against baseline
+        let result2 = tester
+            .compare_against_baseline("update_test", &buffer)
+            .unwrap();
+        assert!(result2.matches);
+
+        // Cleanup
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_compare_against_baseline_mismatch_saves_diff() {
+        use std::fs;
+        let temp_dir = std::env::temp_dir().join("vr_test_diff_save");
+        let _ = fs::remove_dir_all(&temp_dir);
+        let diff_dir = std::env::temp_dir().join("vr_test_diff_save_diffs");
+        let _ = fs::remove_dir_all(&diff_dir);
+
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let mut config = VisualRegressionConfig::default()
+            .with_baseline_dir(temp_dir.to_string_lossy())
+            .with_threshold(0.0001) // Very strict threshold
+            .with_color_threshold(0); // No color tolerance
+        config.diff_dir = diff_dir.to_string_lossy().to_string();
+        let tester = VisualRegressionTester::new(config);
+
+        // Create baseline image (red)
+        let mut img1 = image::RgbaImage::new(2, 2);
+        for pixel in img1.pixels_mut() {
+            *pixel = Rgba([255, 0, 0, 255]);
+        }
+        let mut buffer1 = Vec::new();
+        let encoder = image::codecs::png::PngEncoder::new(&mut buffer1);
+        encoder
+            .write_image(img1.as_raw(), 2, 2, image::ExtendedColorType::Rgba8)
+            .unwrap();
+        fs::write(temp_dir.join("diff_test.png"), &buffer1).unwrap();
+
+        // Create different image (green)
+        let mut img2 = image::RgbaImage::new(2, 2);
+        for pixel in img2.pixels_mut() {
+            *pixel = Rgba([0, 255, 0, 255]);
+        }
+        let mut buffer2 = Vec::new();
+        let encoder = image::codecs::png::PngEncoder::new(&mut buffer2);
+        encoder
+            .write_image(img2.as_raw(), 2, 2, image::ExtendedColorType::Rgba8)
+            .unwrap();
+
+        // Compare - should fail and save diff
+        let result = tester
+            .compare_against_baseline("diff_test", &buffer2)
+            .unwrap();
+        assert!(!result.matches);
+        assert!(diff_dir.join("diff_test_diff.png").exists());
+
+        // Cleanup
+        let _ = fs::remove_dir_all(&temp_dir);
+        let _ = fs::remove_dir_all(&diff_dir);
+    }
+
+    #[test]
+    fn test_diff_image_generation() {
+        // Create two very different images - should generate diff image
+        let mut img1 = image::RgbaImage::new(4, 4);
+        let mut img2 = image::RgbaImage::new(4, 4);
+
+        for pixel in img1.pixels_mut() {
+            *pixel = Rgba([0, 0, 0, 255]); // Black
+        }
+        for pixel in img2.pixels_mut() {
+            *pixel = Rgba([255, 255, 255, 255]); // White
+        }
+
+        let mut buffer1 = Vec::new();
+        let mut buffer2 = Vec::new();
+
+        let encoder1 = image::codecs::png::PngEncoder::new(&mut buffer1);
+        encoder1
+            .write_image(img1.as_raw(), 4, 4, image::ExtendedColorType::Rgba8)
+            .unwrap();
+
+        let encoder2 = image::codecs::png::PngEncoder::new(&mut buffer2);
+        encoder2
+            .write_image(img2.as_raw(), 4, 4, image::ExtendedColorType::Rgba8)
+            .unwrap();
+
+        let config = VisualRegressionConfig::default().with_threshold(0.0);
+        let tester = VisualRegressionTester::new(config);
+        let result = tester.compare_images(&buffer1, &buffer2).unwrap();
+
+        assert!(!result.matches);
+        assert!(result.diff_image.is_some());
+        assert!(!result.diff_image.as_ref().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_avg_color_diff() {
+        // Create images with measurable color difference
+        let mut img1 = image::RgbaImage::new(2, 2);
+        let mut img2 = image::RgbaImage::new(2, 2);
+
+        for pixel in img1.pixels_mut() {
+            *pixel = Rgba([100, 100, 100, 255]);
+        }
+        for pixel in img2.pixels_mut() {
+            *pixel = Rgba([200, 100, 100, 255]); // +100 difference in red
+        }
+
+        let mut buffer1 = Vec::new();
+        let mut buffer2 = Vec::new();
+
+        let encoder1 = image::codecs::png::PngEncoder::new(&mut buffer1);
+        encoder1
+            .write_image(img1.as_raw(), 2, 2, image::ExtendedColorType::Rgba8)
+            .unwrap();
+
+        let encoder2 = image::codecs::png::PngEncoder::new(&mut buffer2);
+        encoder2
+            .write_image(img2.as_raw(), 2, 2, image::ExtendedColorType::Rgba8)
+            .unwrap();
+
+        let config = VisualRegressionConfig::default().with_color_threshold(0);
+        let tester = VisualRegressionTester::new(config);
+        let result = tester.compare_images(&buffer1, &buffer2).unwrap();
+
+        assert_eq!(result.diff_pixel_count, 4);
+        assert_eq!(result.max_color_diff, 100);
+        assert!((result.avg_color_diff - 100.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_invalid_image_decode() {
+        let tester = VisualRegressionTester::default();
+        let invalid_data = vec![0, 1, 2, 3, 4]; // Not a valid image
+
+        let result = tester.compare_images(&invalid_data, &invalid_data);
+        assert!(result.is_err());
     }
 }

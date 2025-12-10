@@ -968,4 +968,137 @@ mod tests {
             assert!(opts.visible);
         }
     }
+
+    mod additional_selector_tests {
+        use super::*;
+
+        #[test]
+        fn test_xpath_selector_query() {
+            let selector = Selector::XPath("//button[@id='test']".to_string());
+            let query = selector.to_query();
+            assert!(query.contains("evaluate"));
+            assert!(query.contains("XPathResult"));
+        }
+
+        #[test]
+        fn test_xpath_selector_count_query() {
+            let selector = Selector::XPath("//button".to_string());
+            let query = selector.to_count_query();
+            assert!(query.contains("SNAPSHOT"));
+            assert!(query.contains("snapshotLength"));
+        }
+
+        #[test]
+        fn test_css_with_text_selector() {
+            let selector = Selector::CssWithText {
+                css: "button".to_string(),
+                text: "Click Me".to_string(),
+            };
+            let query = selector.to_query();
+            assert!(query.contains("querySelectorAll"));
+            assert!(query.contains("textContent"));
+        }
+
+        #[test]
+        fn test_css_with_text_count_query() {
+            let selector = Selector::CssWithText {
+                css: "button".to_string(),
+                text: "Click".to_string(),
+            };
+            let query = selector.to_count_query();
+            assert!(query.contains("filter"));
+            assert!(query.contains(".length"));
+        }
+
+        #[test]
+        fn test_canvas_entity_selector() {
+            let selector = Selector::CanvasEntity {
+                entity: "player".to_string(),
+            };
+            let query = selector.to_query();
+            assert!(query.contains("__wasm_get_canvas_entity"));
+        }
+
+        #[test]
+        fn test_canvas_entity_count_query() {
+            let selector = Selector::CanvasEntity {
+                entity: "enemy".to_string(),
+            };
+            let query = selector.to_count_query();
+            assert!(query.contains("__wasm_count_canvas_entities"));
+        }
+
+        #[test]
+        fn test_text_selector_count_query() {
+            let selector = Selector::text("Hello");
+            let query = selector.to_count_query();
+            assert!(query.contains("filter"));
+            assert!(query.contains("length"));
+        }
+
+        #[test]
+        fn test_entity_count_query() {
+            let selector = Selector::entity("player");
+            let query = selector.to_count_query();
+            assert!(query.contains("__wasm_count_entities"));
+        }
+    }
+
+    mod additional_drag_tests {
+        use super::*;
+
+        #[test]
+        fn test_drag_operation_defaults() {
+            let drag = DragOperation::to(Point::new(100.0, 100.0));
+            assert_eq!(drag.steps, 10);
+            assert_eq!(drag.duration, Duration::from_millis(500));
+        }
+
+        #[test]
+        fn test_drag_operation_custom_steps() {
+            let drag = DragOperation::to(Point::new(100.0, 100.0)).steps(20);
+            assert_eq!(drag.steps, 20);
+        }
+
+        #[test]
+        fn test_drag_operation_custom_duration() {
+            let drag = DragOperation::to(Point::new(100.0, 100.0)).duration(Duration::from_secs(1));
+            assert_eq!(drag.duration, Duration::from_secs(1));
+        }
+    }
+
+    mod additional_locator_tests {
+        use super::*;
+
+        #[test]
+        fn test_locator_bounding_box() {
+            let locator = Locator::new("button");
+            let query = locator.bounding_box().unwrap();
+            assert!(matches!(query, LocatorQuery::BoundingBox { .. }));
+        }
+    }
+
+    mod additional_bounding_box_tests {
+        use super::*;
+
+        #[test]
+        fn test_bounding_box_creation_and_fields() {
+            let bbox = BoundingBox::new(10.0, 20.0, 100.0, 50.0);
+            assert!((bbox.x - 10.0).abs() < f32::EPSILON);
+            assert!((bbox.y - 20.0).abs() < f32::EPSILON);
+            assert!((bbox.width - 100.0).abs() < f32::EPSILON);
+            assert!((bbox.height - 50.0).abs() < f32::EPSILON);
+        }
+
+        #[test]
+        fn test_bounding_box_contains_edge_cases() {
+            let bbox = BoundingBox::new(0.0, 0.0, 100.0, 100.0);
+            // On the edge should be inside
+            assert!(bbox.contains(&Point::new(0.0, 0.0)));
+            assert!(bbox.contains(&Point::new(100.0, 100.0)));
+            // Just outside should not be inside
+            assert!(!bbox.contains(&Point::new(-1.0, 50.0)));
+            assert!(!bbox.contains(&Point::new(101.0, 50.0)));
+        }
+    }
 }

@@ -606,6 +606,34 @@ pub fn validate_level2(game: &Level2Game) -> Result<(), YamlError> {
 mod tests {
     use super::*;
 
+    // Schema Level Tests
+    #[test]
+    fn test_schema_level_default() {
+        assert_eq!(SchemaLevel::default(), SchemaLevel::Level1);
+    }
+
+    #[test]
+    fn test_schema_level_max_nesting_depth() {
+        assert_eq!(SchemaLevel::Level1.max_nesting_depth(), 3);
+        assert_eq!(SchemaLevel::Level2.max_nesting_depth(), 5);
+        assert_eq!(SchemaLevel::Level3.max_nesting_depth(), 6);
+    }
+
+    #[test]
+    fn test_schema_level_age_range() {
+        assert_eq!(SchemaLevel::Level1.age_range(), "5-7");
+        assert_eq!(SchemaLevel::Level2.age_range(), "8-10");
+        assert_eq!(SchemaLevel::Level3.age_range(), "11+");
+    }
+
+    #[test]
+    fn test_schema_level_vocabulary_size() {
+        assert_eq!(SchemaLevel::Level1.vocabulary_size(), 50);
+        assert_eq!(SchemaLevel::Level2.vocabulary_size(), 150);
+        assert_eq!(SchemaLevel::Level3.vocabulary_size(), 500);
+    }
+
+    // Detect Level Tests
     #[test]
     fn test_detect_level1() {
         let yaml = "character: bunny";
@@ -625,6 +653,12 @@ mod tests {
     }
 
     #[test]
+    fn test_detect_level2_lives() {
+        let yaml = "lives: 3";
+        assert_eq!(detect_level(yaml).unwrap(), SchemaLevel::Level2);
+    }
+
+    #[test]
     fn test_detect_level3_assets() {
         let yaml = "assets:\n  models:\n    ai: test.apr";
         assert_eq!(detect_level(yaml).unwrap(), SchemaLevel::Level3);
@@ -636,6 +670,31 @@ mod tests {
         assert_eq!(detect_level(yaml).unwrap(), SchemaLevel::Level3);
     }
 
+    #[test]
+    fn test_detect_level3_world() {
+        let yaml = "world:\n  type: static";
+        assert_eq!(detect_level(yaml).unwrap(), SchemaLevel::Level3);
+    }
+
+    #[test]
+    fn test_detect_level3_version() {
+        let yaml = "version: 1";
+        assert_eq!(detect_level(yaml).unwrap(), SchemaLevel::Level3);
+    }
+
+    #[test]
+    fn test_detect_level_invalid_yaml() {
+        let yaml = "invalid: [yaml: error";
+        assert!(detect_level(yaml).is_err());
+    }
+
+    #[test]
+    fn test_detect_level_non_mapping() {
+        let yaml = "- item1\n- item2";
+        assert_eq!(detect_level(yaml).unwrap(), SchemaLevel::Level1);
+    }
+
+    // Validation Tests
     #[test]
     fn test_validate_level1_valid() {
         let game = Level1Game {
@@ -657,6 +716,57 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_level1_invalid_background() {
+        let game = Level1Game {
+            character: "bunny".to_string(),
+            background: Some("invalid_background".to_string()),
+            ..Default::default()
+        };
+        let err = validate_level1(&game).unwrap_err();
+        assert!(matches!(err, YamlError::InvalidEnumValue { field, .. } if field == "background"));
+    }
+
+    #[test]
+    fn test_validate_level1_invalid_music() {
+        let game = Level1Game {
+            character: "bunny".to_string(),
+            music: Some("invalid_music".to_string()),
+            ..Default::default()
+        };
+        let err = validate_level1(&game).unwrap_err();
+        assert!(matches!(err, YamlError::InvalidEnumValue { field, .. } if field == "music"));
+    }
+
+    #[test]
+    fn test_validate_level1_invalid_touch_target() {
+        let game = Level1Game {
+            character: "bunny".to_string(),
+            when_touch: Some(Level1TouchEvent {
+                target: "invalid_target".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let err = validate_level1(&game).unwrap_err();
+        assert!(matches!(err, YamlError::InvalidEnumValue { field, .. } if field == "target"));
+    }
+
+    #[test]
+    fn test_validate_level1_invalid_sound() {
+        let game = Level1Game {
+            character: "bunny".to_string(),
+            when_touch: Some(Level1TouchEvent {
+                target: "star".to_string(),
+                sound: Some("invalid_sound".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let err = validate_level1(&game).unwrap_err();
+        assert!(matches!(err, YamlError::InvalidEnumValue { field, .. } if field == "sound"));
+    }
+
+    #[test]
     fn test_validate_level1_score_range() {
         let game = Level1Game {
             character: "bunny".to_string(),
@@ -672,6 +782,110 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_level1_valid_score() {
+        let game = Level1Game {
+            character: "bunny".to_string(),
+            when_touch: Some(Level1TouchEvent {
+                target: "star".to_string(),
+                score: Some(5),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        assert!(validate_level1(&game).is_ok());
+    }
+
+    // Level 2 Validation Tests
+    #[test]
+    fn test_validate_level2_valid() {
+        let game = Level2Game::default();
+        assert!(validate_level2(&game).is_ok());
+    }
+
+    #[test]
+    fn test_validate_level2_invalid_lives_high() {
+        let game = Level2Game {
+            lives: Some(99),
+            ..Default::default()
+        };
+        let err = validate_level2(&game).unwrap_err();
+        assert!(matches!(err, YamlError::OutOfRange { .. }));
+    }
+
+    #[test]
+    fn test_validate_level2_invalid_lives_zero() {
+        let game = Level2Game {
+            lives: Some(0),
+            ..Default::default()
+        };
+        let err = validate_level2(&game).unwrap_err();
+        assert!(matches!(err, YamlError::OutOfRange { .. }));
+    }
+
+    #[test]
+    fn test_validate_level2_valid_lives() {
+        let game = Level2Game {
+            lives: Some(3),
+            ..Default::default()
+        };
+        assert!(validate_level2(&game).is_ok());
+    }
+
+    #[test]
+    fn test_validate_level2_invalid_character_type() {
+        let mut characters = std::collections::HashMap::new();
+        let _ = characters.insert(
+            "player".to_string(),
+            Level2Character {
+                char_type: "invalid_type".to_string(),
+                ..Default::default()
+            },
+        );
+        let game = Level2Game {
+            characters: Some(characters),
+            ..Default::default()
+        };
+        assert!(validate_level2(&game).is_err());
+    }
+
+    #[test]
+    fn test_validate_level2_invalid_pattern() {
+        let mut characters = std::collections::HashMap::new();
+        let _ = characters.insert(
+            "player".to_string(),
+            Level2Character {
+                char_type: "bunny".to_string(),
+                pattern: Some("invalid_pattern".to_string()),
+                ..Default::default()
+            },
+        );
+        let game = Level2Game {
+            characters: Some(characters),
+            ..Default::default()
+        };
+        assert!(validate_level2(&game).is_err());
+    }
+
+    #[test]
+    fn test_validate_level2_invalid_speed() {
+        let mut characters = std::collections::HashMap::new();
+        let _ = characters.insert(
+            "player".to_string(),
+            Level2Character {
+                char_type: "bunny".to_string(),
+                speed: Some("invalid_speed".to_string()),
+                ..Default::default()
+            },
+        );
+        let game = Level2Game {
+            characters: Some(characters),
+            ..Default::default()
+        };
+        assert!(validate_level2(&game).is_err());
+    }
+
+    // Parsing Tests
+    #[test]
     fn test_parse_level1() {
         let yaml = r"
 character: bunny
@@ -680,6 +894,22 @@ background: sky
         let game: Level1Game = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(game.character, "bunny");
         assert_eq!(game.background, Some("sky".to_string()));
+    }
+
+    #[test]
+    fn test_parse_level1_with_touch() {
+        let yaml = r"
+character: bunny
+when_touch:
+  target: star
+  sound: happy
+  score: 1
+";
+        let game: Level1Game = serde_yaml::from_str(yaml).unwrap();
+        assert!(game.when_touch.is_some());
+        let touch = game.when_touch.unwrap();
+        assert_eq!(touch.target, "star");
+        assert_eq!(touch.score, Some(1));
     }
 
     #[test]
@@ -695,6 +925,21 @@ lives: 3
         let game: Level2Game = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(game.lives, Some(3));
         assert!(game.characters.is_some());
+    }
+
+    #[test]
+    fn test_parse_level2_with_rules() {
+        let yaml = r"
+rules:
+  - when: player touches star
+    then:
+      - add_score: 10
+";
+        let game: Level2Game = serde_yaml::from_str(yaml).unwrap();
+        assert!(game.rules.is_some());
+        let rules = game.rules.unwrap();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].when, "player touches star");
     }
 
     #[test]
@@ -714,5 +959,91 @@ entities:
         assert_eq!(game.version, Some(1));
         assert!(game.assets.is_some());
         assert!(game.entities.is_some());
+    }
+
+    #[test]
+    fn test_parse_level3_with_world() {
+        let yaml = r"
+world:
+  type: procedural
+  algorithm: wfc
+  seed: 12345
+  size: [100, 100]
+";
+        let game: Level3Game = serde_yaml::from_str(yaml).unwrap();
+        assert!(game.world.is_some());
+        let world = game.world.unwrap();
+        assert_eq!(world.world_type, Some("procedural".to_string()));
+        assert_eq!(world.algorithm, Some("wfc".to_string()));
+    }
+
+    #[test]
+    fn test_parse_level3_seed_auto() {
+        let yaml = r"
+world:
+  seed: auto
+";
+        let game: Level3Game = serde_yaml::from_str(yaml).unwrap();
+        assert!(game.world.is_some());
+        let world = game.world.unwrap();
+        assert!(matches!(world.seed, Some(SeedValue::Auto(_))));
+    }
+
+    #[test]
+    fn test_parse_level3_with_physics() {
+        let yaml = r"
+physics:
+  type: continuous
+  collision: aabb
+";
+        let game: Level3Game = serde_yaml::from_str(yaml).unwrap();
+        assert!(game.physics.is_some());
+    }
+
+    #[test]
+    fn test_parse_level3_with_camera() {
+        let yaml = r"
+camera:
+  follow: player
+  zoom: 2.0
+";
+        let game: Level3Game = serde_yaml::from_str(yaml).unwrap();
+        assert!(game.camera.is_some());
+        let camera = game.camera.unwrap();
+        assert_eq!(camera.follow, Some("player".to_string()));
+    }
+
+    #[test]
+    fn test_parse_level3_with_ui() {
+        let yaml = r"
+ui:
+  health_bar:
+    anchor: top-left
+    bind: player.health
+";
+        let game: Level3Game = serde_yaml::from_str(yaml).unwrap();
+        assert!(game.ui.is_some());
+    }
+
+    #[test]
+    fn test_parse_level3_entity_with_components() {
+        let yaml = r"
+entities:
+  player:
+    sprite: hero
+    components:
+      position: [100, 200]
+      health: 100
+      speed: 5.0
+    controls:
+      move: wasd
+      attack: space
+";
+        let game: Level3Game = serde_yaml::from_str(yaml).unwrap();
+        assert!(game.entities.is_some());
+        let entities = game.entities.unwrap();
+        let player = entities.get("player").unwrap();
+        assert!(player.components.is_some());
+        assert!(player.controls.is_some());
     }
 }

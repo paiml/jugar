@@ -127,8 +127,14 @@ test-e2e-headed: build-web ## Run Playwright e2e tests with browser visible
 test: ## Run all tests
 	cargo test --all-features
 
-test-fast: ## Run library tests only (fast)
-	cargo test --lib
+test-fast: ## Run library tests only (fast, <2 min)
+	@echo "⚡ Running fast tests (target: <2 min)..."
+	@if command -v cargo-nextest >/dev/null 2>&1; then \
+		cargo nextest run --workspace --lib --status-level skip --failure-output immediate; \
+	else \
+		cargo test --workspace --lib; \
+	fi
+	@echo "✅ Fast tests complete!"
 
 test-wasm: ## Run WASM-compatible tests
 	cargo test --target $(WASM_TARGET) --all-features 2>/dev/null || echo "WASM tests require wasm-pack or similar"
@@ -165,23 +171,39 @@ fmt-check: ## Check formatting
 	cargo fmt -- --check
 
 # Code Coverage (Toyota Way: "make coverage" just works)
-# Following bashrs/trueno Two-Phase Pattern for reliable coverage
+# Following bashrs Two-Phase Pattern for reliable, fast coverage
 # TARGET: < 5 minutes with proper mold linker handling
-# Exclude patterns: binaries and code generators (not library code)
-COV_IGNORE := --ignore-filename-regex='bin/.*\.rs'
+# Exclude patterns:
+#   - bin/*.rs: binaries (not library code)
+#   - wasmtime.*: external crate internals
+#   - probar-derive: proc-macro crate (tested via trybuild, not direct coverage)
+#   - browser.rs: requires real browser (tested via Playwright)
+COV_IGNORE := --ignore-filename-regex='bin/.*\.rs|wasmtime.*|probar-derive|browser\.rs'
 
-coverage: ## Generate coverage report (≥95% required)
-	@echo "📊 Generating coverage report (target: ≥95%)..."
+coverage: ## Generate coverage report (≥95% required, fast mode)
+	@echo "📊 Generating coverage report (target: ≥95%, <5 min)..."
+	@echo ""
+	@echo "  [1/4] Installing tools if needed..."
+	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
+	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
+	@echo "  [2/4] Cleaning old coverage data..."
+	@cargo llvm-cov clean --workspace 2>/dev/null || true
+	@mkdir -p target/coverage
 	@# Temporarily disable mold linker (breaks LLVM coverage)
 	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
-	@cargo llvm-cov --workspace --lcov --output-path lcov.info $(COV_IGNORE)
+	@echo "  [3/4] Running tests with instrumentation (nextest)..."
+	@cargo llvm-cov --no-report nextest --no-tests=warn --workspace $(COV_IGNORE) 2>/dev/null || \
+		cargo llvm-cov --no-report --workspace $(COV_IGNORE)
+	@echo "  [4/4] Generating reports..."
 	@cargo llvm-cov report --html --output-dir target/coverage/html $(COV_IGNORE)
+	@cargo llvm-cov report --lcov --output-path lcov.info $(COV_IGNORE)
 	@# Restore mold linker
 	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
+	@echo ""
 	@echo "✅ Coverage report: target/coverage/html/index.html"
 	@echo ""
-	@echo "📊 Coverage by Crate:"
-	@cargo llvm-cov report $(COV_IGNORE) 2>/dev/null | grep -E "^crates|TOTAL" || cargo llvm-cov report $(COV_IGNORE)
+	@echo "📊 Coverage Summary:"
+	@cargo llvm-cov report --summary-only $(COV_IGNORE) 2>/dev/null | grep -E "TOTAL" || echo "  Run succeeded"
 
 coverage-summary: ## Show coverage summary
 	@cargo llvm-cov report --summary-only $(COV_IGNORE) 2>/dev/null || echo "Run 'make coverage' first"
