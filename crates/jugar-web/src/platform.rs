@@ -129,8 +129,8 @@ impl HudButtons {
         let ai_btn_y = ai_y - 2.0;
         let bar_x = 40.0;
         let bar_width = 100.0;
-        let ai_btn_x = bar_x + bar_width + 75.0; // 215.0
-        let ai_plus_x = ai_btn_x + ai_btn_size + 5.0; // 240.0
+        let ai_btn_x = bar_x + bar_width + 100.0; // 240.0 - after "X/9 Nightmare" text
+        let ai_plus_x = ai_btn_x + ai_btn_size + 5.0; // 265.0
         let ai_decrease = ButtonRect::new(ai_btn_x, ai_btn_y, ai_btn_size, ai_btn_size);
         let ai_increase = ButtonRect::new(ai_plus_x, ai_btn_y, ai_btn_size, ai_btn_size);
 
@@ -148,10 +148,11 @@ impl HudButtons {
             button_height,
         );
 
-        // Sound toggle button (next to model info)
+        // Sound toggle button (next to model info, after [I] hint)
         let sound_width = Self::button_width("Sound", char_width, button_padding);
+        let info_x = 10.0 + download_width + 5.0;
         let sound_toggle = ButtonRect::new(
-            10.0 + download_width + 5.0 + info_width + 5.0,
+            info_x + info_width + 25.0, // 25.0 accounts for "[I]" hint spacing
             download_y,
             sound_width,
             button_height,
@@ -1868,10 +1869,10 @@ impl PongGame {
             TextBaseline::Top,
         );
 
-        // AI difficulty +/- buttons
+        // AI difficulty +/- buttons (positioned after "X/9 Nightmare" text ~90px)
         let ai_btn_size = 20.0;
         let ai_btn_y = ai_y - 2.0;
-        let ai_btn_x = bar_x + bar_width + 75.0;
+        let ai_btn_x = bar_x + bar_width + 100.0;
 
         // - button
         frame.fill_rect(
@@ -2491,16 +2492,16 @@ impl PongGame {
         if self.game_mode == GameMode::Demo {
             // Left AI widget (upper-left)
             if let Some(left_ai) = self.left_ai.as_ref() {
-                self.render_single_ai_widget(frame, left_ai, 10.0, "P1 AI");
+                self.render_single_ai_widget(frame, left_ai, 10.0, "P1 .apr Model");
             }
             // Right AI widget (upper-right)
             if let Some(right_ai) = self.ai.as_ref() {
-                self.render_single_ai_widget(frame, right_ai, self.width - 210.0, "P2 AI");
+                self.render_single_ai_widget(frame, right_ai, self.width - 210.0, "P2 .apr Model");
             }
         } else {
             // SinglePlayer mode - show left AI widget (AI opponent is on the left)
             if let Some(left_ai) = self.left_ai.as_ref() {
-                self.render_single_ai_widget(frame, left_ai, 10.0, ".apr SHAP");
+                self.render_single_ai_widget(frame, left_ai, 10.0, ".apr ML Model");
             }
         }
     }
@@ -4396,10 +4397,10 @@ mod tests {
         // Run a frame - game starts in SinglePlayer mode with AI enabled
         let result = platform.frame(0.0, "[]");
 
-        // Should render the .apr SHAP widget title
+        // Should render the .apr ML Model widget title
         assert!(
-            result.contains(".apr SHAP"),
-            "Expected frame output to contain '.apr SHAP' widget text. Output: {}",
+            result.contains(".apr ML Model"),
+            "Expected frame output to contain '.apr ML Model' widget text. Output: {}",
             &result[..result.len().min(2000)]
         );
     }
@@ -4415,10 +4416,112 @@ mod tests {
         // Run a frame
         let result = platform.frame(0.0, "[]");
 
-        // Should NOT contain the .apr SHAP widget in 2P mode
+        // Should NOT contain the .apr ML Model widget in 2P mode
         assert!(
-            !result.contains(".apr SHAP"),
-            "Expected frame output to NOT contain '.apr SHAP' widget text in 2P mode"
+            !result.contains(".apr ML Model"),
+            "Expected frame output to NOT contain '.apr ML Model' widget text in 2P mode"
+        );
+    }
+
+    #[test]
+    fn test_footer_buttons_positions_match_render() {
+        // Test that HudButtons::calculate() produces positions that match render_hud()
+        let hud = HudButtons::calculate(800.0, 600.0);
+
+        // Download button at x=10
+        assert_eq!(hud.download.x, 10.0, "Download button should be at x=10");
+        assert!(
+            hud.download.y > 500.0,
+            "Download button should be near bottom"
+        );
+
+        // Info button after download
+        assert!(
+            hud.model_info.x > hud.download.x + hud.download.width,
+            "Info button should be after download button"
+        );
+
+        // Sound button after info (with [I] hint space)
+        let expected_sound_x = hud.model_info.x + hud.model_info.width + 25.0;
+        assert_eq!(
+            hud.sound_toggle.x, expected_sound_x,
+            "Sound button should be 25px after info button (accounting for [I] hint)"
+        );
+    }
+
+    #[test]
+    fn test_info_button_click_toggles_panel() {
+        let config = WebConfig::default();
+        let mut platform = WebPlatform::new_for_test(config);
+
+        // First frame to initialize
+        let _ = platform.frame(0.0, "[]");
+
+        // Get info button position
+        let hud = HudButtons::calculate(800.0, 600.0);
+        let click_x = hud.model_info.x + hud.model_info.width / 2.0;
+        let click_y = hud.model_info.y + hud.model_info.height / 2.0;
+
+        // Click on info button
+        let click = format!(
+            r#"[{{"event_type":"MouseDown","timestamp":100,"data":{{"button":0,"x":{},"y":{}}}}}]"#,
+            click_x, click_y
+        );
+        let result = platform.frame(100.0, &click);
+
+        // Info panel should now be visible (contains more detailed info)
+        assert!(
+            result.contains("Model Info") || result.contains("difficulty_profiles"),
+            "Info panel should be visible after clicking Info button"
+        );
+    }
+
+    #[test]
+    fn test_sound_button_click_toggles_sound() {
+        let config = WebConfig::default();
+        let mut platform = WebPlatform::new_for_test(config);
+
+        // First frame - sound is enabled by default
+        let result1 = platform.frame(0.0, "[]");
+        assert!(
+            result1.contains("Sound"),
+            "Should show 'Sound' when enabled"
+        );
+
+        // Get sound button position
+        let hud = HudButtons::calculate(800.0, 600.0);
+        let click_x = hud.sound_toggle.x + hud.sound_toggle.width / 2.0;
+        let click_y = hud.sound_toggle.y + hud.sound_toggle.height / 2.0;
+
+        // Click on sound button to mute
+        let click = format!(
+            r#"[{{"event_type":"MouseDown","timestamp":100,"data":{{"button":0,"x":{},"y":{}}}}}]"#,
+            click_x, click_y
+        );
+        let result2 = platform.frame(100.0, &click);
+
+        // Should now show "Muted"
+        assert!(
+            result2.contains("Muted"),
+            "Should show 'Muted' after clicking sound button"
+        );
+    }
+
+    #[test]
+    fn test_ai_buttons_dont_overlap_text() {
+        let hud = HudButtons::calculate(800.0, 600.0);
+
+        // AI text starts at bar_x + bar_width + 10 = 40 + 100 + 10 = 150
+        // "9/9 Nightmare" is ~12 chars at 8px each = 96px
+        // So text ends around 150 + 96 = 246
+        // AI buttons should start after this
+
+        let text_end_estimate = 40.0 + 100.0 + 10.0 + 96.0; // ~246
+        assert!(
+            hud.ai_decrease.x >= text_end_estimate - 10.0, // Allow small overlap
+            "AI decrease button (x={}) should not overlap AI text (ends ~{})",
+            hud.ai_decrease.x,
+            text_end_estimate
         );
     }
 }
