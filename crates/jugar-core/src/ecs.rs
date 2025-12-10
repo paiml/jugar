@@ -209,6 +209,36 @@ impl World {
     pub fn contains(&self, entity: Entity) -> bool {
         self.entities.contains(&entity)
     }
+
+    // ========================================================================
+    // Probar introspection helpers (always available, but mainly used with feature)
+    // ========================================================================
+
+    /// Returns the number of registered component types
+    ///
+    /// This is used by the probar introspection module.
+    #[must_use]
+    pub fn component_type_count(&self) -> usize {
+        self.components.len()
+    }
+
+    /// Internal method for probar feature - same as component_type_count
+    #[must_use]
+    #[doc(hidden)]
+    pub fn component_type_count_internal(&self) -> usize {
+        self.components.len()
+    }
+
+    /// Returns the number of components attached to an entity
+    ///
+    /// This is used by the probar introspection module.
+    #[must_use]
+    pub fn entity_component_count_internal(&self, entity: Entity) -> usize {
+        self.components
+            .values()
+            .filter(|storage| storage.contains(entity))
+            .count()
+    }
 }
 
 impl fmt::Debug for World {

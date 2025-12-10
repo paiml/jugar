@@ -8,6 +8,12 @@
 //! - **Poka-Yoke**: Type-safe entity/component relationships prevent invalid states
 //! - **Heijunka**: Fixed timestep game loop ensures physics consistency
 //! - **Mieruka**: Debug-friendly types with comprehensive Display/Debug impls
+//!
+//! ## Probar Integration
+//!
+//! When the `probar` feature is enabled, this crate exposes introspection hooks
+//! for the Probar test runner. This allows debugging and testing of ECS state
+//! without modifying game behavior.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -20,9 +26,16 @@ pub mod components;
 pub mod ecs;
 pub mod game_loop;
 
+/// Probar introspection hooks (only compiled with `probar` feature)
+#[cfg(feature = "probar")]
+pub mod introspection;
+
 pub use components::*;
 pub use ecs::*;
 pub use game_loop::*;
+
+#[cfg(feature = "probar")]
+pub use introspection::*;
 
 /// Errors that can occur in jugar-core
 #[derive(Error, Debug, Clone, PartialEq, Eq)]

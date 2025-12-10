@@ -1,0 +1,55 @@
+# Maze Explorer - Level 2 Template
+# Find your way through the maze for ages 8-10
+#
+# Collect keys, avoid ghosts, find the exit!
+
+game: maze-explorer
+
+characters:
+  player:
+    type: robot
+    move: arrows
+    speed: normal
+
+  ghost:
+    type: ghost
+    move: auto
+    pattern: patrol
+    speed: slow
+
+  key:
+    type: key
+    move: none
+
+  door:
+    type: door
+    move: none
+
+rules:
+  - when: player touches key
+    then:
+      - add_score: 50
+      - play: ding
+      - key: disappear
+
+  - when: player touches ghost
+    then:
+      - lose_life: 1
+      - play: oops
+      - player: blink
+
+  - when: player touches door
+    then:
+      - show: you_win
+      - play: victory
+      - stop: game
+
+  - when: lives equals 0
+    then:
+      - show: game_over
+      - stop: game
+
+lives: 3
+score_goal: 100
+background: forest
+music: adventure

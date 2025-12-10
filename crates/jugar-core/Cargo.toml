@@ -10,6 +10,11 @@ authors.workspace = true
 keywords = ["ecs", "game-loop", "state-management", "wasm"]
 categories = ["game-engines", "data-structures"]
 
+[features]
+default = []
+## Enable Probar test runner introspection hooks for ECS debugging
+probar = []
+
 [dependencies]
 glam = { workspace = true }
 serde = { workspace = true }
@@ -19,6 +24,7 @@ log = { workspace = true }
 [dev-dependencies]
 proptest = { workspace = true }
 criterion = { workspace = true }
+serde_json = { workspace = true }
 
 [[bench]]
 name = "game_loop"

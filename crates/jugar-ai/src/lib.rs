@@ -1,15 +1,42 @@
 //! # jugar-ai
 //!
-//! AI systems for Jugar including Behavior Trees and GOAP.
+//! AI systems for Jugar including Behavior Trees, GOAP, and Aprender integration.
+//!
+//! Per spec Section 5.3: Aprender AI Integration for YAML-first game creation.
+//!
+//! # Example
+//!
+//! ```ignore
+//! use jugar_ai::{AiSystem, YamlAiBridge, AiInputs};
+//! use glam::Vec2;
+//!
+//! let mut system = AiSystem::new();
+//! let bridge = YamlAiBridge::new();
+//!
+//! // Resolve YAML AI keyword
+//! let model_id = bridge.resolve("builtin:chase", &mut system)?;
+//!
+//! // Run inference
+//! let inputs = AiInputs::from_positions(
+//!     Vec2::new(0.0, 0.0),
+//!     Vec2::new(100.0, 50.0),
+//!     0.016,
+//! );
+//! let outputs = system.infer(&model_id, &inputs)?;
+//! ```
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+
+mod system;
 
 use core::fmt;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+pub use system::{AiComponent, AiInputs, AiOutputs, AiSystem, BehaviorState, YamlAiBridge};
 
 /// AI system errors
 #[derive(Error, Debug, Clone, PartialEq, Eq)]

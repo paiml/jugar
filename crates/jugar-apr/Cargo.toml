@@ -1,0 +1,40 @@
+[package]
+name = "jugar-apr"
+description = "Aprender Package Resource (.apr) model format for AI game behaviors"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords = ["apr", "ai", "model", "game", "aprender"]
+categories = ["game-engines", "parser-implementations", "science"]
+
+[dependencies]
+# Serialization
+serde = { workspace = true }
+ciborium = "0.2"
+
+# Compression
+miniz_oxide = "0.8"
+
+# CRC checksum
+crc32fast = "1.4"
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+log = { workspace = true }
+
+# Timestamps
+chrono = { version = "0.4", default-features = false, features = ["std", "serde", "clock"] }
+
+# Semver
+semver = { version = "1.0", features = ["serde"] }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true

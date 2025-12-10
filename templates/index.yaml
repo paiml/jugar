@@ -1,0 +1,27 @@
+# ELI5 YAML Game Templates Index
+# Per spec Section 10.2: Remixable Templates
+
+templates:
+  - id: catch-stars
+    name: "Catch the Stars"
+    description: "Collect falling stars with your bunny!"
+    level: 1
+    age_range: "5-7"
+    yaml_lines: 8
+    file: catch-stars.yaml
+
+  - id: pong
+    name: "Pong Classic"
+    description: "The classic paddle game"
+    level: 2
+    age_range: "8-10"
+    yaml_lines: 35
+    file: pong.yaml
+
+  - id: maze
+    name: "Maze Explorer"
+    description: "Find your way through the maze"
+    level: 2
+    age_range: "8-10"
+    yaml_lines: 40
+    file: maze.yaml
