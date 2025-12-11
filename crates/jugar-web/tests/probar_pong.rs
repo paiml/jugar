@@ -39,8 +39,8 @@
     unused_results
 )]
 
-use jugar_probar::Assertion;
 use jugar_web::{GameState, WebConfig, WebPlatform};
+use probar::Assertion;
 
 // =============================================================================
 // Test Helpers
