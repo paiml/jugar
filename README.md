@@ -16,6 +16,9 @@
   <a href="https://crates.io/crates/jugar">
     <img src="https://img.shields.io/crates/v/jugar.svg" alt="Crates.io">
   </a>
+  <a href="https://paiml.github.io/jugar/">
+    <img src="https://img.shields.io/badge/book-mdbook-blue" alt="Book">
+  </a>
 </p>
 
 ---
@@ -284,6 +287,7 @@ Jugar follows **PMAT (Pragmatic Metrics for Agile Teams)** quality methodology:
 
 ## Documentation
 
+- **[The Jugar Book](https://paiml.github.io/jugar/)** - Comprehensive guide and tutorials
 - **[API Documentation](https://docs.rs/jugar)** - Complete API reference
 - **[Specification](docs/jugar-spec.md)** - Full engine specification
 - **[Examples](examples/)** - Runnable example games
