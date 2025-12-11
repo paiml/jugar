@@ -19,9 +19,9 @@ This document specifies the AI opponent design for the Jugar Pong demo, with the
 ### Peer-Reviewed Sources
 
 1. **Dynamic Difficulty Adjustment (DDA)**
-   - [MDPI Virtual Worlds (2024)](https://www.mdpi.com/2813-2084/3/2/12): Hybrid DDA approaches promising
-   - [arXiv Personalized DDA (2024)](https://arxiv.org/html/2408.06818v1): IL + RL combination
-   - [Wiley DDA Review (2018)](https://onlinelibrary.wiley.com/doi/10.1155/2018/5681652): Comprehensive taxonomy
+   - MDPI Virtual Worlds (2024): Hybrid DDA approaches promising (doi:10.3390/virtualworlds3020012)
+   - [arXiv Personalized DDA (2024)](https://arxiv.org/abs/2408.06818): IL + RL combination
+   - Wiley DDA Review (2018): Comprehensive taxonomy (doi:10.1155/2018/5681652)
 
 2. **Flow Theory (Csikszentmihalyi)**
    - [Think Game Design](https://thinkgamedesign.com/flow-theory-game-design/): Three-channel model
