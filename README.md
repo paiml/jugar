@@ -223,7 +223,7 @@ cargo run --example accessibility_demo -p jugar-probar
 
 ### Probar: Rust-Native WASM Game Testing
 
-Jugar uses **Probar** (Spanish: "to test/prove") - a pure Rust testing framework that replaces Playwright for E2E testing. Unlike Playwright, Probar can directly inspect game state without browser automation overhead.
+Jugar uses **[Probar](https://paiml.github.io/jugar/probar/overview.html)** (Spanish: "to test/prove") - a pure Rust testing framework that replaces Playwright for E2E testing. Unlike Playwright, Probar can directly inspect game state without browser automation overhead.
 
 ```bash
 # Run all E2E tests (39 tests, ~3 seconds)
