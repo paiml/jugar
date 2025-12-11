@@ -1,0 +1,22 @@
+[book]
+authors = ["Jugar Contributors"]
+language = "en"
+multilingual = false
+src = "book/src"
+title = "Jugar: WASM-Native Universal Game Engine"
+description = "The complete guide to building games with Jugar - Pure WASM, Zero JavaScript"
+
+[build]
+build-dir = "target/book"
+create-missing = false
+
+[output.html]
+default-theme = "rust"
+git-repository-url = "https://github.com/paiml/jugar"
+preferred-dark-theme = "coal"
+additional-css = []
+no-section-label = false
+
+[output.html.fold]
+enable = true
+level = 1

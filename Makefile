@@ -9,7 +9,7 @@
 
 WASM_TARGET := wasm32-unknown-unknown
 
-.PHONY: help tier1 tier2 tier3 build build-wasm build-web serve-web test test-fast test-property test-property-full test-e2e test-e2e-verbose test-e2e-coverage coverage coverage-summary coverage-open coverage-check coverage-ci coverage-clean lint lint-all lint-fast lint-bash lint-ts lint-html lint-js-complexity fmt clean all dev bench mutate mutate-quick mutate-file mutate-report kaizen pmat-tdg pmat-analyze pmat-ts pmat-score pmat-rust-score pmat-mutate pmat-validate-docs pmat-quality-gate pmat-context pmat-all install-tools verify-no-js verify-batuta-deps load-test load-test-quick load-test-full ai-test ai-simulate trace-test sandbox test-sandbox test-sandbox-verbose test-sandbox-coverage sandbox-lint sandbox-mutate build-sandbox-wasm
+.PHONY: help tier1 tier2 tier3 build build-wasm build-web serve-web test test-fast test-property test-property-full test-e2e test-e2e-verbose test-e2e-coverage coverage coverage-summary coverage-open coverage-check coverage-ci coverage-clean lint lint-all lint-fast lint-bash lint-ts lint-html lint-js-complexity fmt clean all dev bench mutate mutate-quick mutate-file mutate-report kaizen pmat-tdg pmat-analyze pmat-ts pmat-score pmat-rust-score pmat-mutate pmat-validate-docs pmat-quality-gate pmat-context pmat-all install-tools verify-no-js verify-batuta-deps load-test load-test-quick load-test-full ai-test ai-simulate trace-test sandbox test-sandbox test-sandbox-verbose test-sandbox-coverage sandbox-lint sandbox-mutate build-sandbox-wasm book book-serve book-open book-clean
 
 # Default target
 all: tier2
@@ -735,3 +735,30 @@ build-sandbox-wasm: ## Build physics-toy-sandbox for WASM target
 	@cargo build -p physics-toy-sandbox --target $(WASM_TARGET) --release --features wasm
 	@echo "✅ WASM build complete!"
 	@ls -lh target/$(WASM_TARGET)/release/*.wasm 2>/dev/null || echo "   (no .wasm output - this is a library crate)"
+
+# ============================================================================
+# BOOK (mdbook documentation)
+# ============================================================================
+book: ## Build the mdbook documentation
+	@echo "📚 Building Jugar book..."
+	@command -v mdbook >/dev/null 2>&1 || { echo "📦 Installing mdbook..." && cargo install mdbook; }
+	@mdbook build
+	@echo "✅ Book built to target/book/"
+
+book-serve: ## Serve the book locally with live reload
+	@echo "📚 Serving Jugar book at http://localhost:3000..."
+	@command -v mdbook >/dev/null 2>&1 || { echo "📦 Installing mdbook..." && cargo install mdbook; }
+	@mdbook serve --open
+
+book-open: ## Open the book in browser
+	@if [ -f target/book/index.html ]; then \
+		xdg-open target/book/index.html 2>/dev/null || \
+		open target/book/index.html 2>/dev/null || \
+		echo "Please open: target/book/index.html"; \
+	else \
+		echo "❌ Run 'make book' first to build the book"; \
+	fi
+
+book-clean: ## Clean book build artifacts
+	@rm -rf target/book
+	@echo "✓ Book artifacts cleaned"
