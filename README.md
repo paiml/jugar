@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/paiml/jugar/actions/workflows/pmat-quality.yml">
-    <img src="https://github.com/paiml/jugar/actions/workflows/pmat-quality.yml/badge.svg" alt="CI">
+  <a href="https://github.com/paiml/jugar/actions/workflows/ci.yml">
+    <img src="https://github.com/paiml/jugar/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
   <a href="https://crates.io/crates/jugar">
     <img src="https://img.shields.io/crates/v/jugar.svg" alt="Crates.io">
