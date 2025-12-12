@@ -12,8 +12,8 @@ categories = ["game-engines", "simulation", "wasm"]
 
 [features]
 default = []
-## Enable Probar test runner introspection hooks
-probar = ["dep:probar"]
+## Enable jugar-probar test runner introspection hooks
+jugar-probar = ["dep:jugar-probar"]
 ## Enable WASM target with web-sys bindings
 wasm = ["web-sys", "wasm-bindgen"]
 
@@ -24,8 +24,8 @@ jugar-physics = { version = "0.1", path = "../jugar-physics" }
 jugar-ui = { version = "0.1", path = "../jugar-ui" }
 jugar-input = { version = "0.1", path = "../jugar-input" }
 
-# Optional: Probar testing framework
-probar = { workspace = true, optional = true }
+# Optional: jugar-probar testing framework
+jugar-probar = { workspace = true, optional = true }
 
 # Math and linear algebra
 glam = { workspace = true }
@@ -57,7 +57,7 @@ wasm-bindgen = { workspace = true, optional = true }
 [dev-dependencies]
 proptest = { workspace = true }
 criterion = { workspace = true }
-probar = { workspace = true }
+jugar-probar = { workspace = true }
 
 [lints]
 workspace = true

@@ -27,14 +27,14 @@ pub mod ecs;
 pub mod game_loop;
 
 /// Probar introspection hooks (only compiled with `probar` feature)
-#[cfg(feature = "probar")]
+#[cfg(feature = "jugar-probar")]
 pub mod introspection;
 
 pub use components::*;
 pub use ecs::*;
 pub use game_loop::*;
 
-#[cfg(feature = "probar")]
+#[cfg(feature = "jugar-probar")]
 pub use introspection::*;
 
 /// Errors that can occur in jugar-core
