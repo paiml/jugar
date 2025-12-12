@@ -3,7 +3,7 @@
 //! This module is only compiled when the `probar` feature is enabled.
 //! It provides read-only access to ECS internals for the Probar test runner.
 //!
-//! Per spec Section 14.2: "Add `#[cfg(feature = "probar")]` hooks in `jugar-core`
+//! Per spec Section 14.2: "Add `#[cfg(feature = "jugar-probar")]` hooks in `jugar-core`
 //! to expose ECS tables to the Probar test runner."
 //!
 //! # Safety

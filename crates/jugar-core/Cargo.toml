@@ -12,8 +12,8 @@ categories = ["game-engines", "data-structures"]
 
 [features]
 default = []
-## Enable Probar test runner introspection hooks for ECS debugging
-probar = []
+## Enable jugar-probar test runner introspection hooks for ECS debugging
+jugar-probar = []
 
 [dependencies]
 glam = { workspace = true }

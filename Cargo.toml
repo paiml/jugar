@@ -86,8 +86,8 @@ base64 = "0.22"
 wasmtime = "29"
 async-trait = "0.1"
 
-# Probar testing framework (external)
-probar = { path = "../probar/crates/probar" }
+# Probar testing framework (crates.io)
+jugar-probar = "0.2"
 
 # UUID for unique identifiers
 uuid = { version = "1.11", features = ["v4", "serde", "js"] }
