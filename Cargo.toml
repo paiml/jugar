@@ -31,8 +31,8 @@ categories = ["game-engines", "wasm", "graphics", "no-std"]
 
 [workspace.dependencies]
 # Core dependencies (from trueno/aprender ecosystem)
-trueno = "0.8"       # SIMD compute layer
-aprender = "0.17"    # AI/ML layer (latest)
+trueno = "0.11"      # SIMD compute layer
+aprender = "0.23"    # AI/ML layer (latest)
 
 # CDP/Browser testing
 chromiumoxide = { version = "0.8", default-features = false, features = ["tokio-runtime"] }
