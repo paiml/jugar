@@ -19,7 +19,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 rust-version = "1.75.0"
 license = "MIT"
@@ -31,7 +31,7 @@ categories = ["game-engines", "wasm", "graphics", "no-std"]
 
 [workspace.dependencies]
 # Core dependencies (from trueno/aprender ecosystem)
-trueno = "0.11"      # SIMD compute layer
+trueno = "0.14"      # SIMD compute layer
 aprender = "0.23"    # AI/ML layer (latest)
 
 # CDP/Browser testing
