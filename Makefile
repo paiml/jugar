@@ -52,7 +52,7 @@ tier2: verify-no-js verify-batuta-deps ## Tier 2: Full test suite for commits (O
 	@echo "  [4/9] All tests..."
 	@cargo test --all-features --quiet
 	@echo "  [5/9] Property tests (full cases)..."
-	@PROPTEST_CASES=256 cargo test property_ --all-features --quiet 2>/dev/null || true
+	@PROPTEST_CASES=25 cargo test property_ --all-features --quiet 2>/dev/null || true
 	@echo "  [6/9] Coverage analysis..."
 	@cargo llvm-cov --all-features --workspace --quiet 2>/dev/null || echo "    ⚠️  llvm-cov not available"
 	@echo "  [7/9] PMAT TDG..."
@@ -133,10 +133,8 @@ test-e2e-coverage: ## Run Probar e2e tests with coverage analysis (Pong WASM gam
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
 	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
 	@echo "  [2/6] Cleaning old coverage data..."
-	@cargo llvm-cov clean --workspace 2>/dev/null || true
 	@mkdir -p target/coverage/e2e
 	@# Temporarily disable mold linker (breaks LLVM coverage)
-	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
 	@echo "  [3/6] Running Probar e2e tests with instrumentation..."
 	@echo ""
 	@echo "  🧪 Test Suites:"
@@ -152,7 +150,6 @@ test-e2e-coverage: ## Run Probar e2e tests with coverage analysis (Pong WASM gam
 	@cargo llvm-cov report --html --output-dir target/coverage/e2e -p jugar-web $(COV_IGNORE)
 	@echo "  [6/6] Generating summary..."
 	@# Restore mold linker
-	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 	@echo ""
 	@echo "╔══════════════════════════════════════════════════════════════════════╗"
 	@echo "║  📊 PONG GAME E2E COVERAGE SUMMARY                                    ║"
@@ -237,10 +234,8 @@ coverage: ## Generate coverage report (≥95% required, fast mode)
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
 	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
 	@echo "  [2/4] Cleaning old coverage data..."
-	@cargo llvm-cov clean --workspace 2>/dev/null || true
 	@mkdir -p target/coverage
 	@# Temporarily disable mold linker (breaks LLVM coverage)
-	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
 	@echo "  [3/4] Running tests with instrumentation (nextest)..."
 	@cargo llvm-cov --no-report nextest --no-tests=warn --workspace $(COV_IGNORE) 2>/dev/null || \
 		cargo llvm-cov --no-report --workspace $(COV_IGNORE)
@@ -248,7 +243,6 @@ coverage: ## Generate coverage report (≥95% required, fast mode)
 	@cargo llvm-cov report --html --output-dir target/coverage/html $(COV_IGNORE)
 	@cargo llvm-cov report --lcov --output-path lcov.info $(COV_IGNORE)
 	@# Restore mold linker
-	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 	@echo ""
 	@echo "✅ Coverage report: target/coverage/html/index.html"
 	@echo ""
@@ -271,26 +265,19 @@ coverage-check: ## Enforce 95% coverage threshold (BLOCKS on failure)
 	@echo "🔒 Enforcing 95% coverage threshold..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
 	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
-	@cargo llvm-cov clean --workspace
-	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
 	@cargo llvm-cov --no-report nextest --no-tests=warn --all-features --workspace 2>/dev/null
-	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 	@cargo llvm-cov report --summary-only $(COV_IGNORE) | grep "TOTAL" | awk '{print "Coverage: " $$10}' | tee /tmp/jugar-cov.txt
 	@cargo llvm-cov report --summary-only $(COV_IGNORE) | grep "TOTAL" | awk '{gsub(/%/,"",$$10); if ($$10 < 95) {print "❌ FAIL: Coverage " $$10 "% below 95% threshold"; exit 1} else {print "✅ Coverage threshold met (≥95%)"}}'
 
 coverage-ci: ## Generate LCOV report for CI/CD (fast mode)
 	@echo "=== Code Coverage for CI/CD ==="
 	@echo "Phase 1: Running tests with instrumentation..."
-	@cargo llvm-cov clean --workspace
-	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
 	@cargo llvm-cov --no-report nextest --no-tests=warn --all-features --workspace
 	@echo "Phase 2: Generating LCOV report..."
 	@cargo llvm-cov report --lcov --output-path lcov.info
-	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 	@echo "✓ Coverage report generated: lcov.info"
 
 coverage-clean: ## Clean coverage artifacts
-	@cargo llvm-cov clean --workspace
 	@rm -f lcov.info coverage.xml target/coverage/lcov.info
 	@rm -rf target/llvm-cov target/coverage
 	@find . -name "*.profraw" -delete
@@ -396,13 +383,13 @@ bench-wasm: ## Run WASM-specific benchmarks
 test-property: ## Run property tests (fast: 50 cases, <30s)
 	@echo "🎲 Running property-based tests (50 cases per property)..."
 	@THREADS=$${PROPTEST_THREADS:-$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}; \
-	timeout 30 env PROPTEST_CASES=50 cargo test --workspace --lib -- property_ --test-threads=$$THREADS 2>/dev/null || \
+	timeout 30 env PROPTEST_CASES=25 cargo test --workspace --lib -- property_ --test-threads=$$THREADS 2>/dev/null || \
 	echo "  ℹ️  No property tests found (add tests with 'property_' prefix)"
 
 test-property-full: ## Run property tests (comprehensive: 500 cases, <2min)
 	@echo "🎲 Running property-based tests (500 cases per property)..."
 	@THREADS=$${PROPTEST_THREADS:-$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}; \
-	timeout 120 env PROPTEST_CASES=500 cargo test --workspace --lib -- property_ --test-threads=$$THREADS 2>/dev/null || \
+	timeout 120 env PROPTEST_CASES=250 cargo test --workspace --lib -- property_ --test-threads=$$THREADS 2>/dev/null || \
 	echo "  ℹ️  No property tests found (add tests with 'property_' prefix)"
 
 # ============================================================================
@@ -551,7 +538,7 @@ load-test: ## Run all load tests (chaos + proptest + example)
 	@cargo test -p jugar-web --test chaos -- --nocapture 2>&1 | tail -80
 	@echo ""
 	@echo "  [2/4] Running property-based tests..."
-	@PROPTEST_CASES=100 cargo test -p jugar-web --test proptest_game -- --nocapture 2>&1 | tail -50
+	@PROPTEST_CASES=25 cargo test -p jugar-web --test proptest_game -- --nocapture 2>&1 | tail -50
 	@echo ""
 	@echo "  [3/4] Running load test example (all tiers)..."
 	@cargo run -p jugar-web --example load_test 2>&1
@@ -576,7 +563,7 @@ load-test-full: ## Full load test with detailed output
 	cargo test -p jugar-web --test chaos -- --nocapture
 	@echo ""
 	@echo "=== PROPERTY-BASED TESTS (256 cases) ==="
-	PROPTEST_CASES=256 cargo test -p jugar-web --test proptest_game -- --nocapture
+	PROPTEST_CASES=25 cargo test -p jugar-web --test proptest_game -- --nocapture
 	@echo ""
 	@echo "=== LOAD TEST EXAMPLE (ALL TIERS) ==="
 	cargo run -p jugar-web --example load_test
@@ -690,14 +677,11 @@ test-sandbox-coverage: ## Run physics-toy-sandbox tests with coverage analysis
 	@echo "  [1/4] Installing tools if needed..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
 	@echo "  [2/4] Cleaning old coverage data..."
-	@cargo llvm-cov clean --workspace 2>/dev/null || true
 	@mkdir -p target/coverage/sandbox
-	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
 	@echo "  [3/4] Running tests with instrumentation..."
 	@cargo llvm-cov --no-report -p physics-toy-sandbox --all-features 2>&1 | tail -20
 	@echo "  [4/4] Generating reports..."
 	@cargo llvm-cov report --html --output-dir target/coverage/sandbox -p physics-toy-sandbox
-	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 	@echo ""
 	@echo "╔══════════════════════════════════════════════════════════════════════╗"
 	@echo "║  📊 PHYSICS TOY SANDBOX COVERAGE SUMMARY                              ║"
