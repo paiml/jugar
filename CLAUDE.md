@@ -186,7 +186,11 @@ See `docs/jugar-spec.md` Section 12 for complete WASM Quality Framework.
 
 ## Stack Documentation Search
 
-Query this component's documentation and the entire Sovereign AI Stack using batuta's RAG Oracle:
+**IMPORTANT: Proactively use the batuta RAG oracle when:**
+- Looking up patterns from other stack components (trueno SIMD, aprender ML, realizar inference)
+- Finding ECS, physics, and rendering patterns from ground truth corpora
+- Understanding WASM-native build patterns across the stack
+- Researching game AI, input handling, and audio integration approaches
 
 ```bash
 # Index all stack documentation (run once, persists to ~/.cache/batuta/rag/)
@@ -195,13 +199,12 @@ batuta oracle --rag-index
 # Search across the entire stack
 batuta oracle --rag "your question here"
 
-# Examples
-batuta oracle --rag "SIMD matrix multiplication"
-batuta oracle --rag "how to train a model"
-batuta oracle --rag "tokenization for BERT"
-
-# Check index status
-batuta oracle --rag-stats
+# Jugar-specific examples
+batuta oracle --rag "ECS entity component system architecture"
+batuta oracle --rag "WASM-native zero JavaScript patterns"
+batuta oracle --rag "physics collision detection broad phase"
+batuta oracle --rag "game AI behavior tree implementation"
+batuta oracle --rag "GPU wgpu render pipeline setup"
 ```
 
-The RAG index includes CLAUDE.md, README.md, and source files from all stack components plus Python ground truth corpora for cross-language pattern matching.
+The RAG index (341+ docs) includes CLAUDE.md, README.md, and source files from all stack components plus Python ground truth corpora for cross-language pattern matching.
