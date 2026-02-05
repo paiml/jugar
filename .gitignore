@@ -41,3 +41,10 @@ lcov.info
 node_modules/
 test-results/
 playwright-report/
+
+# PMAT
+.pmat/backup/
+.pmat-qa/
+.pmat/context.idx/
+.pmat/workspace.idx/
+.pmat/deps-cache.json
