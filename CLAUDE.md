@@ -44,6 +44,37 @@ aprender = { path = "../batuta/crates/aprender" }
 
 Jugar (Spanish: "to play") is a WASM-native universal game engine built on the **Batuta Sovereign AI Stack**, targeting `wasm32-unknown-unknown` with **ABSOLUTE ZERO JavaScript**. It supports mobile-first design scaling up to 49" ultra-wide monitors (32:9 aspect ratio).
 
+## Code Search (pmat query)
+
+**NEVER use grep or rg for code discovery.** Use `pmat query` instead -- it returns quality-annotated, ranked results with TDG scores and fault annotations.
+
+```bash
+# Find functions by intent
+pmat query "entity component system" --limit 10
+
+# Find high-quality code
+pmat query "render pipeline" --min-grade A --exclude-tests
+
+# Find with fault annotations (unwrap, panic, unsafe, etc.)
+pmat query "collision detection" --faults
+
+# Filter by complexity
+pmat query "game loop" --max-complexity 10
+
+# Cross-project search
+pmat query "physics engine" --include-project ../trueno
+
+# Git history search (find code by commit intent via RRF fusion)
+pmat query "fix sprite rendering" -G
+pmat query "game update" --git-history
+
+# Enrichment flags (combine freely)
+pmat query "game update" --churn              # git volatility (commit count, churn score)
+pmat query "input handler" --duplicates           # code clone detection (MinHash+LSH)
+pmat query "render pass" --entropy           # pattern diversity (repetitive vs unique)
+pmat query "ecs query" --churn --duplicates --entropy --faults -G  # full audit
+```
+
 ## Build Commands
 
 ```bash
