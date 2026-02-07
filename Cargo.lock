@@ -70,24 +70,6 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "aprender"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0465726d912d2d3bfab09b25325f8330d8837c79f642fd80f6e38dbc94fe33eb"
-dependencies = [
- "bincode",
- "getrandom 0.2.16",
- "memmap2",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "rmp-serde",
- "serde",
- "serde_json",
- "trueno 0.8.1",
-]
-
-[[package]]
-name = "aprender"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f0da5259c3f5e51f9eb70168d53d344f100bcd7f8632ce47409870bb693bb0d"
@@ -1211,7 +1193,7 @@ dependencies = [
 name = "jugar-ai"
 version = "0.1.2"
 dependencies = [
- "aprender 0.23.0",
+ "aprender",
  "glam",
  "jugar-apr",
  "jugar-core",
@@ -1354,7 +1336,7 @@ dependencies = [
 name = "jugar-web"
 version = "0.1.2"
 dependencies = [
- "aprender 0.16.0",
+ "aprender",
  "fastrand",
  "glam",
  "jugar",
@@ -2710,15 +2692,6 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
-]
-
-[[package]]
-name = "trueno"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74c75705b4166e5bbfdf986abe7051af798832d66c0f4c3581bae4686b0c4e25"
-dependencies = [
- "thiserror 2.0.17",
 ]
 
 [[package]]

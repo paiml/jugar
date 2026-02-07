@@ -22,7 +22,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 glam = { workspace = true }
 fastrand = "2.1"
-aprender = "0.16"
+aprender = { workspace = true }
 trueno = { workspace = true }
 
 [[bin]]
