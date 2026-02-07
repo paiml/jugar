@@ -95,3 +95,10 @@ max_binary_size_bytes = 2_000_000  # 2MB
 
 # Verify WASM SIMD support
 require_simd = true
+
+[compute-brick]
+enabled = true
+require_safety_comments = true
+require_target_feature = true
+cv_threshold_percent = 15.0
+efficiency_threshold_percent = 25.0

@@ -115,11 +115,11 @@ serve-web: ## Serve pong-web example locally
 
 test-e2e: build-web ## Run Probar e2e tests for pong-web (replaces Playwright)
 	@echo "🧪 Running Probar e2e tests (pure Rust, no browser needed)..."
-	cargo test -p jugar-web --test probar_pong
+	PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo test -p jugar-web --test probar_pong
 	@echo "✅ All Probar e2e tests passed!"
 
 test-e2e-verbose: build-web ## Run Probar e2e tests with verbose output
-	cargo test -p jugar-web --test probar_pong -- --nocapture
+	PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo test -p jugar-web --test probar_pong -- --nocapture
 
 test-e2e-coverage: ## Run Probar e2e tests with coverage analysis (Pong WASM game)
 	@echo "🎮 PROBAR E2E COVERAGE: Pong WASM Game"
@@ -172,19 +172,19 @@ test-e2e-coverage: ## Run Probar e2e tests with coverage analysis (Pong WASM gam
 # TEST TARGETS
 # ============================================================================
 test: ## Run all tests
-	cargo test --all-features
+	PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo test --all-features
 
 test-fast: ## Run library tests only (fast, <2 min)
 	@echo "⚡ Running fast tests (target: <2 min)..."
 	@if command -v cargo-nextest >/dev/null 2>&1; then \
-		cargo nextest run --workspace --lib --status-level skip --failure-output immediate; \
+		PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo nextest run --workspace --lib --status-level skip --failure-output immediate; \
 	else \
-		cargo test --workspace --lib; \
+		PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo test --workspace --lib; \
 	fi
 	@echo "✅ Fast tests complete!"
 
 test-wasm: ## Run WASM-compatible tests
-	cargo test --target $(WASM_TARGET) --all-features 2>/dev/null || echo "WASM tests require wasm-pack or similar"
+	PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo test --target $(WASM_TARGET) --all-features 2>/dev/null || echo "WASM tests require wasm-pack or similar"
 
 # ============================================================================
 # QUALITY TARGETS
@@ -230,19 +230,14 @@ COV_IGNORE := --ignore-filename-regex='bin/.*\.rs|wasmtime.*|probar-derive|brows
 coverage: ## Generate coverage report (≥95% required, fast mode)
 	@echo "📊 Generating coverage report (target: ≥95%, <5 min)..."
 	@echo ""
-	@echo "  [1/4] Installing tools if needed..."
+	@echo "  [1/3] Installing tools if needed..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
-	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
-	@echo "  [2/4] Cleaning old coverage data..."
+	@echo "  [2/3] Running tests with instrumentation..."
 	@mkdir -p target/coverage
-	@# Temporarily disable mold linker (breaks LLVM coverage)
-	@echo "  [3/4] Running tests with instrumentation (nextest)..."
-	@cargo llvm-cov --no-report nextest --no-tests=warn --workspace $(COV_IGNORE) 2>/dev/null || \
-		cargo llvm-cov --no-report --workspace $(COV_IGNORE)
-	@echo "  [4/4] Generating reports..."
+	@PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo llvm-cov --no-report test --lib --workspace $(COV_IGNORE)
+	@echo "  [3/3] Generating reports..."
 	@cargo llvm-cov report --html --output-dir target/coverage/html $(COV_IGNORE)
 	@cargo llvm-cov report --lcov --output-path lcov.info $(COV_IGNORE)
-	@# Restore mold linker
 	@echo ""
 	@echo "✅ Coverage report: target/coverage/html/index.html"
 	@echo ""
@@ -264,17 +259,16 @@ coverage-open: ## Open HTML coverage report in browser
 coverage-check: ## Enforce 95% coverage threshold (BLOCKS on failure)
 	@echo "🔒 Enforcing 95% coverage threshold..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
-	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
-	@cargo llvm-cov --no-report nextest --no-tests=warn --all-features --workspace 2>/dev/null
+	@PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo llvm-cov --no-report test --lib --all-features --workspace $(COV_IGNORE)
 	@cargo llvm-cov report --summary-only $(COV_IGNORE) | grep "TOTAL" | awk '{print "Coverage: " $$10}' | tee /tmp/jugar-cov.txt
 	@cargo llvm-cov report --summary-only $(COV_IGNORE) | grep "TOTAL" | awk '{gsub(/%/,"",$$10); if ($$10 < 95) {print "❌ FAIL: Coverage " $$10 "% below 95% threshold"; exit 1} else {print "✅ Coverage threshold met (≥95%)"}}'
 
 coverage-ci: ## Generate LCOV report for CI/CD (fast mode)
 	@echo "=== Code Coverage for CI/CD ==="
 	@echo "Phase 1: Running tests with instrumentation..."
-	@cargo llvm-cov --no-report nextest --no-tests=warn --all-features --workspace
+	@PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo llvm-cov --no-report test --lib --all-features --workspace $(COV_IGNORE)
 	@echo "Phase 2: Generating LCOV report..."
-	@cargo llvm-cov report --lcov --output-path lcov.info
+	@cargo llvm-cov report --lcov --output-path lcov.info $(COV_IGNORE)
 	@echo "✓ Coverage report generated: lcov.info"
 
 coverage-clean: ## Clean coverage artifacts
@@ -662,10 +656,10 @@ sandbox: ## Build and test physics-toy-sandbox crate
 
 test-sandbox: ## Run physics-toy-sandbox tests
 	@echo "🧪 Running physics-toy-sandbox tests..."
-	@cargo test -p physics-toy-sandbox --all-features -- --nocapture
+	@PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo test -p physics-toy-sandbox --all-features -- --nocapture
 
 test-sandbox-verbose: ## Run physics-toy-sandbox tests with verbose output
-	@cargo test -p physics-toy-sandbox --all-features -- --nocapture --show-output
+	@PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo test -p physics-toy-sandbox --all-features -- --nocapture --show-output
 
 test-sandbox-coverage: ## Run physics-toy-sandbox tests with coverage analysis
 	@echo "📊 PHYSICS TOY SANDBOX COVERAGE"
