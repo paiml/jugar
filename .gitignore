@@ -48,3 +48,4 @@ playwright-report/
 .pmat/context.idx/
 .pmat/workspace.idx/
 .pmat/deps-cache.json
+.cargo/config.toml
