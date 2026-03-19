@@ -485,8 +485,7 @@ invalid_key: oops
             if let Err(err) = result {
                 let kid_err = err.to_kid_friendly();
                 // Location is optional but should exist for detectable errors
-                if kid_err.location.is_some() {
-                    let loc = kid_err.location.unwrap();
+                if let Some(loc) = kid_err.location {
                     assert!(loc.line > 0);
                 }
             }
