@@ -199,15 +199,17 @@ pub struct FailureReplay {
 impl FailureReplay {
     /// Save failure replay to file
     pub fn save(&self) -> std::io::Result<String> {
+        let dir = std::env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target".to_string());
+        let failures_dir = format!("{dir}/test-failures");
         let filename = format!(
-            "target/test-failures/failure-{}-action-{:03}-seed-{}.json",
+            "{failures_dir}/failure-{}-action-{:03}-seed-{}.json",
             chrono_lite_timestamp(),
             self.action_id,
             self.seed
         );
 
         // Ensure directory exists
-        std::fs::create_dir_all("target/test-failures")?;
+        std::fs::create_dir_all(&failures_dir)?;
 
         let json = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
         std::fs::write(&filename, json)?;
@@ -801,7 +803,7 @@ mod tests {
         };
 
         let result = replay.save();
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "save failed: {:?}", result.err());
         let filename = result.unwrap();
         assert!(filename.contains("failure-"));
         assert!(filename.contains("-action-001-seed-42.json"));
