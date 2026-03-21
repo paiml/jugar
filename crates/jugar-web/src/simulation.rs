@@ -772,10 +772,14 @@ mod tests {
 
     #[test]
     fn test_failure_replay_save() {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let unique_seed = 42_000 + COUNTER.fetch_add(1, Ordering::Relaxed);
+
         let replay = FailureReplay {
             action_id: 1,
             action_name: "test_action".to_string(),
-            seed: 42,
+            seed: unique_seed,
             tier: "smoke".to_string(),
             input_trace: vec![TimestampedInput {
                 frame: 0,
@@ -806,7 +810,7 @@ mod tests {
         assert!(result.is_ok(), "save failed: {:?}", result.err());
         let filename = result.unwrap();
         assert!(filename.contains("failure-"));
-        assert!(filename.contains("-action-001-seed-42.json"));
+        assert!(filename.contains(&format!("-action-001-seed-{unique_seed}.json")));
 
         // Clean up
         let _ = std::fs::remove_file(&filename);
