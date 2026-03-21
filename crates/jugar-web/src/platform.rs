@@ -900,7 +900,7 @@ impl PongGame {
         self.escape_was_pressed = escape_pressed;
 
         match self.state {
-            GameState::Menu => {
+            GameState::Menu | GameState::GameOver => {
                 if space_just_pressed {
                     self.reset_game();
                     self.state = GameState::Playing;
@@ -919,14 +919,6 @@ impl PongGame {
             GameState::Paused => {
                 if space_just_pressed || escape_just_pressed {
                     self.state = GameState::Playing;
-                }
-                false
-            }
-            GameState::GameOver => {
-                if space_just_pressed {
-                    self.reset_game();
-                    self.state = GameState::Playing;
-                    self.audio.on_game_start();
                 }
                 false
             }

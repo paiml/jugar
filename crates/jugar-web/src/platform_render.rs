@@ -2,7 +2,10 @@
 //!
 //! Extracted from platform.rs for file health compliance.
 
-use super::*;
+use super::{
+    ButtonRect, Color, GameMode, GameState, PongAI, PongGame, RenderFrame, SpeedMultiplier,
+    TextAlign, TextBaseline,
+};
 
 impl PongGame {
     /// Handles mouse clicks on HUD buttons.
@@ -100,7 +103,7 @@ impl PongGame {
 
         let render_mode_button =
             |frame: &mut RenderFrame, x: f32, label: &str, is_selected: bool| -> ButtonRect {
-                let bw = (label.len() as f32) * 10.0 + button_padding * 2.0;
+                let bw = (label.len() as f32).mul_add(10.0, button_padding * 2.0);
                 let bg_color = if is_selected {
                     Color::new(0.3, 0.6, 1.0, 0.9)
                 } else {
@@ -165,7 +168,7 @@ impl PongGame {
                                    key_hint: &str,
                                    is_selected: bool|
          -> ButtonRect {
-            let bw = (label.len() as f32) * 8.0 + button_padding * 2.0;
+            let bw = (label.len() as f32).mul_add(8.0, button_padding * 2.0);
             let bg_color = if is_selected {
                 Color::new(1.0, 0.6, 0.2, 0.9)
             } else {
@@ -199,12 +202,12 @@ impl PongGame {
             ButtonRect::new(x, hud_y, bw, button_height)
         };
 
-        let w1x = "1x".len() as f32 * 8.0 + button_padding * 2.0;
-        let w5x = "5x".len() as f32 * 8.0 + button_padding * 2.0;
-        let w10x = "10x".len() as f32 * 8.0 + button_padding * 2.0;
-        let w50x = "50x".len() as f32 * 8.0 + button_padding * 2.0;
-        let w100x = "100x".len() as f32 * 8.0 + button_padding * 2.0;
-        let w1000x = "1000x".len() as f32 * 8.0 + button_padding * 2.0;
+        let w1x = ("1x".len() as f32).mul_add(8.0, button_padding * 2.0);
+        let w5x = ("5x".len() as f32).mul_add(8.0, button_padding * 2.0);
+        let w10x = ("10x".len() as f32).mul_add(8.0, button_padding * 2.0);
+        let w50x = ("50x".len() as f32).mul_add(8.0, button_padding * 2.0);
+        let w100x = ("100x".len() as f32).mul_add(8.0, button_padding * 2.0);
+        let w1000x = ("1000x".len() as f32).mul_add(8.0, button_padding * 2.0);
         let total_width = w1x + w5x + w10x + w50x + w100x + w1000x + 25.0;
 
         let mut speed_x = self.width - total_width - 10.0;
@@ -394,7 +397,7 @@ impl PongGame {
 
         let download_y = self.height - 45.0;
         let download_text = "Download .apr";
-        let download_width = (download_text.len() as f32) * 8.0 + button_padding * 2.0;
+        let download_width = (download_text.len() as f32).mul_add(8.0, button_padding * 2.0);
 
         frame.fill_rect(
             10.0,
@@ -424,7 +427,7 @@ impl PongGame {
         );
 
         let info_text = "Info";
-        let info_width = (info_text.len() as f32) * 8.0 + button_padding * 2.0;
+        let info_width = (info_text.len() as f32).mul_add(8.0, button_padding * 2.0);
         let info_x = 10.0 + download_width + 5.0;
 
         let info_bg = if self.show_model_info {
