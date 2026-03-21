@@ -77,20 +77,27 @@ impl PongGame {
     }
 
     /// Renders the HUD (mode buttons, speed buttons, AI info, download button).
-    #[allow(clippy::too_many_lines, clippy::suboptimal_flops)]
     pub(super) fn render_hud(&mut self, frame: &mut RenderFrame) {
+        self.render_hud_mode_buttons(frame);
+        self.render_hud_speed_buttons(frame);
+        self.render_hud_ai_difficulty(frame);
+        self.render_hud_footer_buttons(frame);
+        self.render_ai_explain_widget(frame);
+        if self.show_model_info {
+            self.render_model_info_panel(frame);
+        }
+        self.render_hud_footer_links(frame);
+    }
+
+    /// Render game mode buttons (Demo, 1P, 2P) in the top-left.
+    fn render_hud_mode_buttons(&mut self, frame: &mut RenderFrame) {
         let hud_y = 10.0;
         let button_height = 28.0;
         let button_padding = 8.0;
         let font_size = "14px monospace";
         let small_font = "12px monospace";
-
-        // =========================================================================
-        // Game Mode Buttons (top-left)
-        // =========================================================================
         let mut mode_x = 10.0;
 
-        // Helper closure to render a button and return its rect
         let render_mode_button =
             |frame: &mut RenderFrame, x: f32, label: &str, is_selected: bool| -> ButtonRect {
                 let bw = (label.len() as f32) * 10.0 + button_padding * 2.0;
@@ -118,12 +125,10 @@ impl PongGame {
                 ButtonRect::new(x, hud_y, bw, button_height)
             };
 
-        // Demo button
         self.hud_buttons.mode_demo =
             render_mode_button(frame, mode_x, "Demo", self.game_mode == GameMode::Demo);
         mode_x += self.hud_buttons.mode_demo.width + 5.0;
 
-        // 1P button
         self.hud_buttons.mode_1p = render_mode_button(
             frame,
             mode_x,
@@ -132,12 +137,10 @@ impl PongGame {
         );
         mode_x += self.hud_buttons.mode_1p.width + 5.0;
 
-        // 2P button
         self.hud_buttons.mode_2p =
             render_mode_button(frame, mode_x, "2P", self.game_mode == GameMode::TwoPlayer);
         mode_x += self.hud_buttons.mode_2p.width + 5.0;
 
-        // Mode keyboard hint
         frame.fill_text_aligned(
             "[M]",
             mode_x + 5.0,
@@ -147,12 +150,15 @@ impl PongGame {
             TextAlign::Left,
             TextBaseline::Middle,
         );
+    }
 
-        // =========================================================================
-        // Speed Multiplier Buttons (top-right)
-        // =========================================================================
+    /// Render speed multiplier buttons (1x..1000x) in the top-right.
+    fn render_hud_speed_buttons(&mut self, frame: &mut RenderFrame) {
+        let hud_y = 10.0;
+        let button_height = 28.0;
+        let button_padding = 8.0;
+        let font_size = "14px monospace";
 
-        // Helper to render a speed button with key hint
         let render_speed_button = |frame: &mut RenderFrame,
                                    x: f32,
                                    label: &str,
@@ -193,14 +199,13 @@ impl PongGame {
             ButtonRect::new(x, hud_y, bw, button_height)
         };
 
-        // Calculate widths for positioning
         let w1x = "1x".len() as f32 * 8.0 + button_padding * 2.0;
         let w5x = "5x".len() as f32 * 8.0 + button_padding * 2.0;
         let w10x = "10x".len() as f32 * 8.0 + button_padding * 2.0;
         let w50x = "50x".len() as f32 * 8.0 + button_padding * 2.0;
         let w100x = "100x".len() as f32 * 8.0 + button_padding * 2.0;
         let w1000x = "1000x".len() as f32 * 8.0 + button_padding * 2.0;
-        let total_width = w1x + w5x + w10x + w50x + w100x + w1000x + 25.0; // 5 gaps * 5px
+        let total_width = w1x + w5x + w10x + w50x + w100x + w1000x + 25.0;
 
         let mut speed_x = self.width - total_width - 10.0;
 
@@ -256,10 +261,15 @@ impl PongGame {
             "6",
             self.speed_multiplier == SpeedMultiplier::Fast1000x,
         );
+    }
 
-        // =========================================================================
-        // AI Difficulty Indicator (below mode buttons)
-        // =========================================================================
+    /// Render AI difficulty indicator with progress bar and +/- buttons.
+    fn render_hud_ai_difficulty(&mut self, frame: &mut RenderFrame) {
+        let hud_y = 10.0;
+        let button_height = 28.0;
+        let font_size = "14px monospace";
+        let small_font = "12px monospace";
+
         let ai_y = hud_y + button_height + 15.0;
         let ai_level = self.ai.as_ref().map_or(5, crate::ai::PongAI::difficulty);
         let ai_name = self
@@ -267,7 +277,6 @@ impl PongGame {
             .as_ref()
             .map_or("Normal", crate::ai::PongAI::difficulty_name);
 
-        // AI label
         frame.fill_text_aligned(
             "AI:",
             10.0,
@@ -278,7 +287,6 @@ impl PongGame {
             TextBaseline::Top,
         );
 
-        // Progress bar background
         let bar_x = 40.0;
         let bar_width = 100.0;
         let bar_height = 12.0;
@@ -290,17 +298,14 @@ impl PongGame {
             Color::new(0.2, 0.2, 0.2, 0.8),
         );
 
-        // Progress bar fill
         let fill_width = (f32::from(ai_level) / 9.0) * bar_width;
         let fill_color = match ai_level {
-            0..=2 => Color::new(0.2, 0.8, 0.2, 1.0), // Green (easy)
-            3..=5 => Color::new(0.8, 0.8, 0.2, 1.0), // Yellow (medium)
-            6..=7 => Color::new(0.8, 0.5, 0.2, 1.0), // Orange (hard)
-            _ => Color::new(0.8, 0.2, 0.2, 1.0),     // Red (expert)
+            0..=2 => Color::new(0.2, 0.8, 0.2, 1.0),
+            3..=5 => Color::new(0.8, 0.8, 0.2, 1.0),
+            6..=7 => Color::new(0.8, 0.5, 0.2, 1.0),
+            _ => Color::new(0.8, 0.2, 0.2, 1.0),
         };
         frame.fill_rect(bar_x, ai_y + 2.0, fill_width, bar_height, fill_color);
-
-        // Progress bar border
         frame.stroke_rect(
             bar_x,
             ai_y + 2.0,
@@ -310,7 +315,6 @@ impl PongGame {
             1.0,
         );
 
-        // AI level text
         let ai_text = format!("{ai_level}/9 {ai_name}");
         frame.fill_text_aligned(
             &ai_text,
@@ -322,12 +326,10 @@ impl PongGame {
             TextBaseline::Top,
         );
 
-        // AI difficulty +/- buttons (positioned after "X/9 Nightmare" text ~90px)
         let ai_btn_size = 20.0;
         let ai_btn_y = ai_y - 2.0;
         let ai_btn_x = bar_x + bar_width + 100.0;
 
-        // - button
         frame.fill_rect(
             ai_btn_x,
             ai_btn_y,
@@ -355,7 +357,6 @@ impl PongGame {
         self.hud_buttons.ai_decrease =
             ButtonRect::new(ai_btn_x, ai_btn_y, ai_btn_size, ai_btn_size);
 
-        // + button
         let ai_plus_x = ai_btn_x + ai_btn_size + 5.0;
         frame.fill_rect(
             ai_plus_x,
@@ -383,15 +384,18 @@ impl PongGame {
         );
         self.hud_buttons.ai_increase =
             ButtonRect::new(ai_plus_x, ai_btn_y, ai_btn_size, ai_btn_size);
+    }
 
-        // =========================================================================
-        // Download .apr Button (bottom-left)
-        // =========================================================================
+    /// Render bottom-left footer buttons (Download, Info, Sound).
+    fn render_hud_footer_buttons(&mut self, frame: &mut RenderFrame) {
+        let button_height = 28.0;
+        let button_padding = 8.0;
+        let font_size = "14px monospace";
+
         let download_y = self.height - 45.0;
         let download_text = "Download .apr";
         let download_width = (download_text.len() as f32) * 8.0 + button_padding * 2.0;
 
-        // Button background
         frame.fill_rect(
             10.0,
             download_y,
@@ -399,8 +403,6 @@ impl PongGame {
             button_height,
             Color::new(0.1, 0.4, 0.2, 0.8),
         );
-
-        // Button border
         frame.stroke_rect(
             10.0,
             download_y,
@@ -409,12 +411,8 @@ impl PongGame {
             Color::new(0.3, 0.7, 0.4, 1.0),
             1.0,
         );
-
-        // Store download button for click handling
         self.hud_buttons.download =
             ButtonRect::new(10.0, download_y, download_width, button_height);
-
-        // Button text
         frame.fill_text_aligned(
             download_text,
             10.0 + download_width / 2.0,
@@ -425,22 +423,16 @@ impl PongGame {
             TextBaseline::Middle,
         );
 
-        // =========================================================================
-        // Info Button (next to Download)
-        // =========================================================================
         let info_text = "Info";
         let info_width = (info_text.len() as f32) * 8.0 + button_padding * 2.0;
         let info_x = 10.0 + download_width + 5.0;
 
-        // Info button background (purple/blue tint to distinguish from download)
         let info_bg = if self.show_model_info {
-            Color::new(0.3, 0.3, 0.7, 0.9) // Brighter when active
+            Color::new(0.3, 0.3, 0.7, 0.9)
         } else {
             Color::new(0.2, 0.2, 0.4, 0.8)
         };
         frame.fill_rect(info_x, download_y, info_width, button_height, info_bg);
-
-        // Info button border
         frame.stroke_rect(
             info_x,
             download_y,
@@ -449,12 +441,8 @@ impl PongGame {
             Color::new(0.4, 0.4, 0.8, 1.0),
             1.0,
         );
-
-        // Store info button for click handling
         self.hud_buttons.model_info =
             ButtonRect::new(info_x, download_y, info_width, button_height);
-
-        // Info button text
         frame.fill_text_aligned(
             info_text,
             info_x + info_width / 2.0,
@@ -464,8 +452,6 @@ impl PongGame {
             TextAlign::Center,
             TextBaseline::Middle,
         );
-
-        // Keyboard hint for Info button
         frame.fill_text_aligned(
             "[I]",
             info_x + info_width + 5.0,
@@ -476,14 +462,10 @@ impl PongGame {
             TextBaseline::Middle,
         );
 
-        // =========================================================================
-        // Sound Toggle Button (next to Info, after hint)
-        // =========================================================================
         let sound_text = if self.sound_enabled { "Sound" } else { "Muted" };
-        let sound_width = 64.0; // Fixed width for consistent layout
-        let sound_x = info_x + info_width + 25.0; // After [I] hint
+        let sound_width = 64.0;
+        let sound_x = info_x + info_width + 25.0;
 
-        // Sound button background (green when on, red when muted)
         let sound_bg = if self.sound_enabled {
             Color::new(0.2, 0.4, 0.2, 0.8)
         } else {
@@ -491,7 +473,6 @@ impl PongGame {
         };
         frame.fill_rect(sound_x, download_y, sound_width, button_height, sound_bg);
 
-        // Sound button border
         let sound_border = if self.sound_enabled {
             Color::new(0.3, 0.7, 0.3, 1.0)
         } else {
@@ -505,12 +486,8 @@ impl PongGame {
             sound_border,
             1.0,
         );
-
-        // Store sound button for click handling
         self.hud_buttons.sound_toggle =
             ButtonRect::new(sound_x, download_y, sound_width, button_height);
-
-        // Sound button text
         frame.fill_text_aligned(
             sound_text,
             sound_x + sound_width / 2.0,
@@ -520,26 +497,16 @@ impl PongGame {
             TextAlign::Center,
             TextBaseline::Middle,
         );
+    }
 
-        // =========================================================================
-        // AI Explainability Widget (upper-right, below speed buttons)
-        // =========================================================================
-        self.render_ai_explain_widget(frame);
-
-        // =========================================================================
-        // Model Info Panel (shown when show_model_info is true)
-        // =========================================================================
-        if self.show_model_info {
-            self.render_model_info_panel(frame);
-        }
-
-        // Footer links (bottom-right, stacked)
+    /// Render footer links (bottom-right).
+    fn render_hud_footer_links(&self, frame: &mut RenderFrame) {
+        let small_font = "12px monospace";
         let footer_x = self.width - 10.0;
         let footer_y = self.height - 10.0;
         let link_color = Color::new(0.4, 0.4, 0.4, 0.7);
         let link_spacing = 14.0;
 
-        // Line 1: PAIML website
         frame.fill_text_aligned(
             "paiml.com",
             footer_x,
@@ -549,8 +516,6 @@ impl PongGame {
             TextAlign::Right,
             TextBaseline::Bottom,
         );
-
-        // Line 2: Jugar repo
         frame.fill_text_aligned(
             "github.com/paiml/jugar",
             footer_x,
@@ -560,8 +525,6 @@ impl PongGame {
             TextAlign::Right,
             TextBaseline::Bottom,
         );
-
-        // Line 3: Aprender (APR format) repo
         frame.fill_text_aligned(
             ".apr format: github.com/paiml/aprender",
             footer_x,
