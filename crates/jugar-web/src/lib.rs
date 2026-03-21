@@ -77,7 +77,9 @@ pub mod time;
 pub mod trace;
 
 #[cfg(test)]
-mod simulation_tests;
+mod simulation_tests_ai_state;
+#[cfg(test)]
+mod simulation_tests_input_physics;
 
 // Re-export main types for convenience
 pub use ai::{

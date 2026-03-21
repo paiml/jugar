@@ -212,48 +212,39 @@ pub fn process_input_events(
     Ok(())
 }
 
-/// Processes a single browser input event
-///
-/// # Arguments
-///
-/// * `event` - The browser input event
-/// * `state` - InputState to update
-/// * `offset` - Offset to subtract from coordinates (viewport to canvas conversion)
-#[allow(clippy::too_many_lines)]
-fn process_single_event(
-    event: &BrowserInputEvent,
+/// Process a keyboard event (KeyDown or KeyUp).
+fn process_keyboard_event(data: &BrowserEventData, state: &mut InputState, is_down: bool) {
+    if let BrowserEventData::Key { key } = data {
+        if let Some(key_code) = translate_key(key) {
+            if is_down {
+                let current = state.key(key_code);
+                if !current.is_down() {
+                    state.set_key(key_code, ButtonState::JustPressed);
+                }
+            } else {
+                state.set_key(key_code, ButtonState::JustReleased);
+            }
+        }
+    }
+}
+
+/// Process a mouse event (MouseMove, MouseDown, MouseUp).
+fn process_mouse_event(
+    event_type: &str,
+    data: &BrowserEventData,
     state: &mut InputState,
     offset: Vec2,
-) -> Result<(), InputTranslationError> {
-    match event.event_type.as_str() {
-        "KeyDown" => {
-            if let BrowserEventData::Key { key } = &event.data {
-                if let Some(key_code) = translate_key(key) {
-                    let current = state.key(key_code);
-                    if !current.is_down() {
-                        state.set_key(key_code, ButtonState::JustPressed);
-                    }
-                }
-            }
-        }
-        "KeyUp" => {
-            if let BrowserEventData::Key { key } = &event.data {
-                if let Some(key_code) = translate_key(key) {
-                    state.set_key(key_code, ButtonState::JustReleased);
-                }
-            }
-        }
+) {
+    match event_type {
         "MouseMove" => {
-            if let BrowserEventData::MouseMove { x, y } = &event.data {
+            if let BrowserEventData::MouseMove { x, y } = data {
                 let old_pos = state.mouse_position;
-                // Apply offset to convert viewport coords to canvas coords
                 state.mouse_position = Vec2::new(*x - offset.x, *y - offset.y);
                 state.mouse_delta = state.mouse_position - old_pos;
             }
         }
         "MouseDown" => {
-            if let BrowserEventData::MouseButton { button, x, y } = &event.data {
-                // Apply offset to convert viewport coords to canvas coords
+            if let BrowserEventData::MouseButton { button, x, y } = data {
                 state.mouse_position = Vec2::new(*x - offset.x, *y - offset.y);
                 let idx = mouse_button_index(*button);
                 if idx < state.mouse_buttons.len() {
@@ -262,8 +253,7 @@ fn process_single_event(
             }
         }
         "MouseUp" => {
-            if let BrowserEventData::MouseButton { button, x, y } = &event.data {
-                // Apply offset to convert viewport coords to canvas coords
+            if let BrowserEventData::MouseButton { button, x, y } = data {
                 state.mouse_position = Vec2::new(*x - offset.x, *y - offset.y);
                 let idx = mouse_button_index(*button);
                 if idx < state.mouse_buttons.len() {
@@ -271,9 +261,20 @@ fn process_single_event(
                 }
             }
         }
+        _ => {}
+    }
+}
+
+/// Process a touch event (TouchStart, TouchMove, TouchEnd, TouchCancel).
+fn process_touch_event(
+    event_type: &str,
+    data: &BrowserEventData,
+    state: &mut InputState,
+    offset: Vec2,
+) {
+    match event_type {
         "TouchStart" => {
-            if let BrowserEventData::Touch { id, x, y } = &event.data {
-                // Apply offset to convert viewport coords to canvas coords
+            if let BrowserEventData::Touch { id, x, y } = data {
                 let canvas_pos = Vec2::new(*x - offset.x, *y - offset.y);
                 state.touches.push(
                     TouchEvent::new(canvas_pos)
@@ -283,10 +284,8 @@ fn process_single_event(
             }
         }
         "TouchMove" => {
-            if let BrowserEventData::Touch { id, x, y } = &event.data {
-                // Apply offset to convert viewport coords to canvas coords
+            if let BrowserEventData::Touch { id, x, y } = data {
                 let canvas_pos = Vec2::new(*x - offset.x, *y - offset.y);
-                // Update existing touch or add new one
                 if let Some(touch) = state.touches.iter_mut().find(|t| t.id == *id) {
                     touch.delta = canvas_pos - touch.position;
                     touch.position = canvas_pos;
@@ -295,21 +294,28 @@ fn process_single_event(
             }
         }
         "TouchEnd" => {
-            if let BrowserEventData::Touch { id, .. } = &event.data {
+            if let BrowserEventData::Touch { id, .. } = data {
                 if let Some(touch) = state.touches.iter_mut().find(|t| t.id == *id) {
                     touch.phase = TouchPhase::Ended;
                 }
             }
         }
         "TouchCancel" => {
-            if let BrowserEventData::Touch { id, .. } = &event.data {
+            if let BrowserEventData::Touch { id, .. } = data {
                 if let Some(touch) = state.touches.iter_mut().find(|t| t.id == *id) {
                     touch.phase = TouchPhase::Cancelled;
                 }
             }
         }
+        _ => {}
+    }
+}
+
+/// Process a gamepad event (button, axis, connect/disconnect).
+fn process_gamepad_event(event_type: &str, data: &BrowserEventData, state: &mut InputState) {
+    match event_type {
         "GamepadButtonDown" => {
-            if let BrowserEventData::GamepadButton { gamepad, button } = &event.data {
+            if let BrowserEventData::GamepadButton { gamepad, button } = data {
                 let gp_idx = *gamepad as usize;
                 if gp_idx < state.gamepads.len() {
                     if let Some(btn) = translate_gamepad_button(*button) {
@@ -323,7 +329,7 @@ fn process_single_event(
             }
         }
         "GamepadButtonUp" => {
-            if let BrowserEventData::GamepadButton { gamepad, button } = &event.data {
+            if let BrowserEventData::GamepadButton { gamepad, button } = data {
                 let gp_idx = *gamepad as usize;
                 if gp_idx < state.gamepads.len() {
                     if let Some(btn) = translate_gamepad_button(*button) {
@@ -340,7 +346,7 @@ fn process_single_event(
                 gamepad,
                 axis,
                 value,
-            } = &event.data
+            } = data
             {
                 let gp_idx = *gamepad as usize;
                 if gp_idx < state.gamepads.len() {
@@ -355,7 +361,7 @@ fn process_single_event(
             }
         }
         "GamepadConnected" => {
-            if let BrowserEventData::GamepadButton { gamepad, .. } = &event.data {
+            if let BrowserEventData::GamepadButton { gamepad, .. } = data {
                 let gp_idx = *gamepad as usize;
                 if gp_idx < state.gamepads.len() {
                     state.gamepads[gp_idx].connected = true;
@@ -363,12 +369,44 @@ fn process_single_event(
             }
         }
         "GamepadDisconnected" => {
-            if let BrowserEventData::GamepadButton { gamepad, .. } = &event.data {
+            if let BrowserEventData::GamepadButton { gamepad, .. } = data {
                 let gp_idx = *gamepad as usize;
                 if gp_idx < state.gamepads.len() {
                     state.gamepads[gp_idx].connected = false;
                 }
             }
+        }
+        _ => {}
+    }
+}
+
+/// Processes a single browser input event
+///
+/// # Arguments
+///
+/// * `event` - The browser input event
+/// * `state` - InputState to update
+/// * `offset` - Offset to subtract from coordinates (viewport to canvas conversion)
+fn process_single_event(
+    event: &BrowserInputEvent,
+    state: &mut InputState,
+    offset: Vec2,
+) -> Result<(), InputTranslationError> {
+    match event.event_type.as_str() {
+        "KeyDown" => process_keyboard_event(&event.data, state, true),
+        "KeyUp" => process_keyboard_event(&event.data, state, false),
+        "MouseMove" | "MouseDown" | "MouseUp" => {
+            process_mouse_event(&event.event_type, &event.data, state, offset);
+        }
+        "TouchStart" | "TouchMove" | "TouchEnd" | "TouchCancel" => {
+            process_touch_event(&event.event_type, &event.data, state, offset);
+        }
+        "GamepadButtonDown"
+        | "GamepadButtonUp"
+        | "GamepadAxisMove"
+        | "GamepadConnected"
+        | "GamepadDisconnected" => {
+            process_gamepad_event(&event.event_type, &event.data, state);
         }
         unknown => {
             return Err(InputTranslationError::UnknownEventType(unknown.to_string()));
