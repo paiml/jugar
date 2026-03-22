@@ -1025,7 +1025,7 @@ impl PongGame {
             self.juice.on_paddle_hit_at(self.ball_x, self.ball_y, false);
             self.audio
                 .on_paddle_hit(self.ball_y, self.left_paddle_y, self.paddle_height);
-            if self.rally_count % 5 == 0 {
+            if self.rally_count.is_multiple_of(5) {
                 self.audio.on_rally_milestone(self.rally_count);
             }
             if let Some(ref mut ai) = self.ai {
@@ -1044,7 +1044,7 @@ impl PongGame {
             self.juice.on_paddle_hit_at(self.ball_x, self.ball_y, true);
             self.audio
                 .on_paddle_hit(self.ball_y, self.right_paddle_y, self.paddle_height);
-            if self.rally_count % 5 == 0 {
+            if self.rally_count.is_multiple_of(5) {
                 self.audio.on_rally_milestone(self.rally_count);
             }
         }
@@ -1254,7 +1254,7 @@ impl WebGame for PongGame {
 
         // Draw ellipse-like ball using the larger of the two radii for circle approximation
         // (true ellipse would require canvas transform, this gives a subtle effect)
-        let avg_radius = (rx + ry) / 2.0;
+        let avg_radius = f32::midpoint(rx, ry);
         frame.fill_circle(
             self.ball_x + shake_x,
             self.ball_y + shake_y,

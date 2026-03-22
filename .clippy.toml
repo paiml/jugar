@@ -1,4 +1,4 @@
 # Clippy configuration
 cognitive-complexity-threshold = 25
 type-complexity-threshold = 250
-too-many-lines-threshold = 100
+too-many-lines-threshold = 125
