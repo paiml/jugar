@@ -26,6 +26,7 @@ license = "MIT"
 repository = "https://github.com/paiml/jugar"
 homepage = "https://github.com/paiml/jugar"
 authors = ["PAIML Team"]
+exclude = ["tests/", "benches/", "docs/", ".github/"]
 keywords = ["game-engine", "wasm", "webgpu", "ecs", "gamedev"]
 categories = ["game-engines", "wasm", "graphics", "no-std"]
 
