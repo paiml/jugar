@@ -267,6 +267,7 @@ impl PongGame {
     }
 
     /// Render AI difficulty indicator with progress bar and +/- buttons.
+    #[allow(clippy::too_many_lines)]
     fn render_hud_ai_difficulty(&mut self, frame: &mut RenderFrame) {
         let hud_y = 10.0;
         let button_height = 28.0;
@@ -390,6 +391,7 @@ impl PongGame {
     }
 
     /// Render bottom-left footer buttons (Download, Info, Sound).
+    #[allow(clippy::too_many_lines)]
     fn render_hud_footer_buttons(&mut self, frame: &mut RenderFrame) {
         let button_height = 28.0;
         let button_padding = 8.0;

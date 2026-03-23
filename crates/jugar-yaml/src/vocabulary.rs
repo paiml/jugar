@@ -26,6 +26,7 @@ pub struct VocabularyCategory {
 impl Vocabulary {
     /// Create Level 1 vocabulary (ages 5-7, ~50 words)
     #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn level1() -> Self {
         let categories = vec![
             VocabularyCategory {

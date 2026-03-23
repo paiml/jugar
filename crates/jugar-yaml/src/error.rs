@@ -99,6 +99,7 @@ pub enum YamlError {
 impl YamlError {
     /// Convert to a kid-friendly error message
     #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn to_kid_friendly(&self) -> KidFriendlyError {
         match self {
             Self::SyntaxError {
