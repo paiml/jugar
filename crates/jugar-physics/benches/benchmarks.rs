@@ -32,15 +32,11 @@ fn bench_physics_step_scaling(c: &mut Criterion) {
             let body = RigidBody::new(Position::new(i as f32, 0.0));
             world.add_body(body);
         }
-        group.bench_with_input(
-            BenchmarkId::new("bodies", count),
-            &count,
-            |b, _| {
-                b.iter(|| {
-                    world.step(black_box(1.0 / 60.0));
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("bodies", count), &count, |b, _| {
+            b.iter(|| {
+                world.step(black_box(1.0 / 60.0));
+            });
+        });
     }
     group.finish();
 }
