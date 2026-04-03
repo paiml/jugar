@@ -243,3 +243,11 @@ The RAG index (341+ docs) includes CLAUDE.md, README.md, and source files from a
 Index auto-updates via post-commit hooks and `ora-fresh` on shell login.
 To manually check freshness: `ora-fresh`
 To force full reindex: `batuta oracle --rag-index --force`
+
+## Contract-First Development
+
+All new features and bug fixes must follow provable-contract-first methodology:
+1. Write or update the contract YAML in `../provable-contracts/contracts/jugar/`
+2. Run `pmat comply check` to validate compliance
+3. Implement the code to satisfy the contract
+4. Run `pmat comply check` again to confirm
